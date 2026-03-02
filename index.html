@@ -1,0 +1,2500 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NRCC Circuit · Monthly Generator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --navy: #0f1f3d;
+      --navy-mid: #1a3260;
+      --navy-light: #243e7a;
+      --gold: #c9972c;
+      --gold-light: #f0c96a;
+      --cream: #fdf9f0;
+      --cream-dark: #f4ede0;
+      --text: #1a1a2e;
+      --text-light: #5a6070;
+      --border: #ddd4c2;
+      --success: #1a6b3c;
+      --danger: #9b1c1c;
+      --white: #ffffff;
+      --shadow: 0 4px 24px rgba(15, 31, 61, 0.12);
+      --shadow-sm: 0 2px 8px rgba(15, 31, 61, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    .app-header {
+      background: var(--navy);
+      padding: 24px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 3px solid var(--gold);
+    }
+
+    .app-header .cross {
+      font-size: 28px;
+      color: var(--gold);
+    }
+
+    .app-header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      color: var(--white);
+      line-height: 1.1;
+    }
+
+    .app-header p {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-top: 2px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* ── LAYOUT ── */
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    /* ── STEP INDICATOR ── */
+    .steps-bar {
+      display: flex;
+      background: var(--white);
+      border-radius: 14px;
+      padding: 6px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow-sm);
+      gap: 4px;
+      overflow-x: auto;
+    }
+
+    .step-tab {
+      flex: 1;
+      padding: 10px 8px;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-light);
+      cursor: default;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      min-width: 72px;
+    }
+
+    .step-tab .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+
+    .step-tab.active {
+      background: var(--navy);
+      color: var(--white);
+    }
+
+    .step-tab.active .step-num {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(201, 151, 44, 0.15);
+    }
+
+    .step-tab.done {
+      color: var(--success);
+    }
+
+    .step-tab.done .step-num {
+      border-color: var(--success);
+      background: #e8f5ee;
+      color: var(--success);
+    }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--cream-dark);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--navy);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .card h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px;
+      color: var(--navy);
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 2px;
+    }
+
+    /* ── FORM ELEMENTS ── */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .form-row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    label.field-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-light);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--cream);
+      width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--navy-light);
+      box-shadow: 0 0 0 3px rgba(26, 50, 96, 0.1);
+      background: var(--white);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    /* Radio-style day picker */
+    .radio-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .radio-option {
+      flex: 1;
+      position: relative;
+    }
+
+    .radio-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+    }
+
+    .radio-option label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 8px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-light);
+      background: var(--cream);
+      transition: all 0.15s;
+      user-select: none;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .radio-option input:checked+label {
+      border-color: var(--navy);
+      background: var(--navy);
+      color: var(--white);
+    }
+
+    /* ── WEEK CARDS ── */
+    .week-card {
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .week-card-head {
+      background: var(--navy);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .week-card-head .week-label {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--white);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .week-range {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .week-body {
+      padding: 12px 16px;
+    }
+
+    .event-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--cream-dark);
+    }
+
+    .event-row:last-child {
+      border-bottom: none;
+    }
+
+    .event-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-diesel {
+      background: #e67e22;
+    }
+
+    .dot-petrol {
+      background: #2980b9;
+    }
+
+    .event-name {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .event-date-text {
+      font-size: 12px;
+      color: var(--text-light);
+      font-variant-numeric: tabular-nums;
+      min-width: 140px;
+      text-align: right;
+    }
+
+    .event-badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      min-width: 52px;
+      text-align: center;
+    }
+
+    .badge-d {
+      background: #fef3e2;
+      color: #c05c00;
+    }
+
+    .badge-p {
+      background: #e3f0fc;
+      color: #1560a8;
+    }
+
+    .rehearsal-override {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 8px;
+    }
+
+    .rehearsal-override select {
+      padding: 4px 8px;
+      font-size: 12px;
+      border-radius: 8px;
+      width: auto;
+      background: var(--white);
+      border-color: var(--border);
+    }
+
+    .special-events-area {
+      padding-top: 8px;
+    }
+
+    .special-events-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 8px;
+    }
+
+    .special-event-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 70px 90px 65px 32px;
+      gap: 6px;
+      align-items: end;
+      margin-bottom: 8px;
+    }
+
+    .special-event-row input[type="number"] {
+      padding: 8px 10px;
+    }
+
+    .special-event-row input[type="date"] {
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .special-event-row input[type="text"] {
+      padding: 8px 10px;
+    }
+
+    /* ── LIST ITEMS (goals, team) ── */
+    .list-item {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .list-item input {
+      flex: 1;
+    }
+
+    .list-num {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-light);
+      width: 20px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn-navy {
+      background: var(--navy);
+      color: var(--white);
+    }
+
+    .btn-navy:hover {
+      background: var(--navy-light);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(15, 31, 61, 0.3);
+    }
+
+    .btn-outline {
+      background: var(--white);
+      color: var(--text);
+      border: 1.5px solid var(--border);
+    }
+
+    .btn-outline:hover {
+      background: var(--cream);
+    }
+
+    .btn-ghost-add {
+      background: transparent;
+      color: var(--navy-light);
+      border: 1.5px dashed var(--navy-light);
+      width: 100%;
+      justify-content: center;
+      opacity: 0.75;
+      padding: 8px;
+      font-size: 13px;
+      border-radius: 8px;
+      margin-top: 4px;
+    }
+
+    .btn-ghost-add:hover {
+      opacity: 1;
+      background: rgba(26, 50, 96, 0.05);
+    }
+
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 8px;
+      justify-content: center;
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .btn-icon:hover {
+      background: #fee2e2;
+    }
+
+    .btn-sm {
+      padding: 7px 14px;
+      font-size: 13px;
+    }
+
+    .nav-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+    }
+
+    /* ── ALERTS ── */
+    .alert {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    .alert-info {
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+
+    .alert-warn {
+      background: #fffbeb;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+
+    /* ── GENERATE PAGE ── */
+    .gen-hero {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      border-radius: 16px;
+      padding: 40px 32px;
+      text-align: center;
+      color: var(--white);
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .gen-hero::before {
+      content: '✝';
+      position: absolute;
+      font-size: 180px;
+      color: rgba(255, 255, 255, 0.03);
+      top: -20px;
+      right: -20px;
+      font-family: serif;
+    }
+
+    .gen-hero h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      margin-bottom: 6px;
+    }
+
+    .gen-hero .gen-sub {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+
+    .gen-hero .month-chip {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 700;
+      font-size: 12px;
+      padding: 4px 14px;
+      border-radius: 20px;
+      letter-spacing: 0.05em;
+      margin-bottom: 20px;
+    }
+
+    .gen-btns {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-gen-excel {
+      background: #16a34a;
+      color: var(--white);
+      padding: 14px 28px;
+      font-size: 15px;
+      border-radius: 12px;
+    }
+
+    .btn-gen-excel:hover {
+      background: #15803d;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4);
+    }
+
+    .btn-gen-word {
+      background: rgba(255, 255, 255, 0.15);
+      color: var(--white);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      padding: 14px 28px;
+      font-size: 15px;
+      border-radius: 12px;
+    }
+
+    .btn-gen-word:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .summary-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .summary-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--cream-dark);
+    }
+
+    .summary-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-weight: 600;
+      margin-right: 4px;
+    }
+
+    .tag-d {
+      background: #fef3e2;
+      color: #c05c00;
+    }
+
+    .tag-p {
+      background: #e3f0fc;
+      color: #1560a8;
+    }
+
+    .tag-sp {
+      background: #f0fdf4;
+      color: #15803d;
+    }
+
+    /* ── ROSTER ── */
+    .roster-grid {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .roster-grid th {
+      background: var(--navy);
+      color: var(--white);
+      padding: 8px 12px;
+      font-size: 11px;
+      text-align: left;
+    }
+
+    .roster-grid td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--cream-dark);
+      vertical-align: middle;
+    }
+
+    .roster-grid tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    .roster-grid select {
+      padding: 5px 8px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    .role-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: var(--navy);
+      color: var(--white);
+      letter-spacing: .05em;
+    }
+
+    /* ── PERFORMANCE TRACKER ── */
+    .perf-table-wrap {
+      overflow-x: auto;
+    }
+
+    .perf-table {
+      border-collapse: collapse;
+      font-size: 11px;
+      min-width: 700px;
+      width: 100%;
+    }
+
+    .perf-table th {
+      background: var(--navy);
+      color: var(--white);
+      padding: 6px 8px;
+      font-size: 10px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .perf-table th.name-col {
+      text-align: left;
+      min-width: 130px;
+    }
+
+    .perf-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--cream-dark);
+      border-right: 1px solid var(--cream-dark);
+      text-align: center;
+    }
+
+    .perf-table td.name-col {
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      background: #fafafa;
+    }
+
+    .perf-table select {
+      padding: 3px 4px;
+      font-size: 11px;
+      border-radius: 5px;
+      width: auto;
+    }
+
+    .date-hdr-sub {
+      font-size: 9px;
+      color: rgba(255, 255, 255, .7);
+      display: block;
+      font-weight: 400;
+    }
+
+    .score-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .score-card {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid var(--cream-dark);
+      text-align: center;
+    }
+
+    .score-card .sc-name {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .score-card .sc-score {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .score-card .sc-label {
+      font-size: 10px;
+      color: var(--text-light);
+    }
+
+    .sc-a {
+      color: #16a34a;
+    }
+
+    .sc-b {
+      color: #ca8a04;
+    }
+
+    .sc-c {
+      color: #dc2626;
+    }
+
+    /* ── SPIRITUAL ACTIVITIES ── */
+    .spirit-section-head {
+      background: #1b4332;
+      color: var(--white);
+      padding: 8px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      border-radius: 8px 8px 0 0;
+      margin-top: 14px;
+    }
+
+    .spirit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .spirit-table th {
+      background: #2d6a4f;
+      color: var(--white);
+      padding: 8px 10px;
+      font-size: 11px;
+      text-align: left;
+    }
+
+    .spirit-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--cream-dark);
+      text-align: center;
+    }
+
+    .spirit-table td.name-col {
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .spirit-table td.total-col {
+      background: #e8f5ee;
+      color: #1a6b3c;
+      font-weight: 700;
+    }
+
+    .save-note {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #1e40af;
+      margin-bottom: 12px;
+    }
+
+    .save-note strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .alert-success {
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+
+    @media (max-width: 600px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .form-row-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .special-event-row {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+
+      .special-event-row .btn-icon {
+        grid-column: span 3;
+        width: 100%;
+        border-radius: 8px;
+      }
+    }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1a6b3c;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .2);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity .25s, transform .25s;
+      z-index: 9999;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── SERVICE LOG DRAWER ── */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .45);
+      z-index: 800;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s;
+    }
+
+    .drawer-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: -520px;
+      width: 500px;
+      max-width: 95vw;
+      height: 100vh;
+      background: var(--white);
+      box-shadow: -6px 0 32px rgba(0, 0, 0, .18);
+      z-index: 900;
+      transition: right .3s cubic-bezier(.4, 0, .2, 1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .drawer.open {
+      right: 0;
+    }
+
+    .drawer-head {
+      background: var(--navy);
+      color: var(--white);
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .drawer-head h3 {
+      font-size: 16px;
+      font-family: 'Playfair Display', serif;
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .log-card {
+      background: var(--cream);
+      border: 1px solid var(--cream-dark);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .log-card-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .log-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .log-field label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .log-field input,
+    .log-field textarea {
+      font-size: 13px;
+      padding: 7px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--white);
+      color: var(--text);
+    }
+
+    .log-field textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    .pin-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .55);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pin-box {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 32px;
+      width: 300px;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, .25);
+    }
+
+    .pin-box h4 {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+
+    .pin-box p {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-bottom: 16px;
+    }
+
+    .pin-input {
+      width: 100%;
+      text-align: center;
+      font-size: 24px;
+      letter-spacing: .4em;
+      padding: 10px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      font-family: monospace;
+      margin-bottom: 16px;
+    }
+
+    .step-tab .step-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--gold);
+      margin-top: 2px;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .step-tab .step-dot.filled {
+      opacity: 1;
+    }
+
+    /* ── WEEK COST BREAKDOWN ── */
+    .week-cost-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    .week-cost-row:nth-child(odd) {
+      background: var(--cream);
+    }
+
+    .week-cost-label {
+      color: var(--text-light);
+      font-size: 12px;
+    }
+
+    .week-cost-amt {
+      font-weight: 700;
+      color: var(--navy);
+    }
+
+    /* ── PRINT ── */
+    @media print {
+
+      .app-header,
+      .steps-bar,
+      .nav-row,
+      .btn,
+      .gen-btns,
+      .save-note {
+        display: none !important;
+      }
+
+      body {
+        background: #fff;
+      }
+
+      .card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+        page-break-inside: avoid;
+      }
+
+      .gen-hero {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+    }
+
+    /* ── BIO DATA MODAL ── */
+    .bio-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--cream);
+      z-index: 2000;
+      flex-direction: column;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .bio-modal-header {
+      background: var(--navy);
+      color: #fff;
+      padding: 20px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3px solid var(--gold);
+    }
+
+    .bio-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px;
+    }
+
+    .bio-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .bio-table th {
+      background: #f8f9fa;
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--text-light);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bio-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .bio-table input {
+      width: 100%;
+      border: 1px solid transparent;
+      padding: 6px 8px;
+      font-size: 13px;
+      border-radius: 6px;
+      background: transparent;
+      transition: all .2s;
+    }
+
+    .bio-table input:focus {
+      background: var(--cream);
+      border-color: var(--border);
+      outline: none;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">✓ Saved</div>
+
+  <!-- Service Log Drawer -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+  <div class="drawer" id="serviceDrawer">
+    <div class="drawer-head">
+      <h3>📋 Service Log</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="openAdminView()"
+          style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:5px 12px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🔒
+          Admin View</button>
+        <button onclick="closeDrawer()"
+          style="background:rgba(255,255,255,.12);color:#fff;border:none;width:30px;height:30px;border-radius:7px;font-size:16px;cursor:pointer">✕</button>
+      </div>
+    </div>
+    <div class="drawer-body" id="drawerBody">Loading…</div>
+  </div>
+
+  <!-- PIN Modal -->
+  <div class="pin-modal" id="pinModal" style="display:none">
+    <div class="pin-box">
+      <h4>🔒 Admin Access</h4>
+      <p>Enter the admin password to continue</p>
+      <input class="pin-input" id="pinInput" type="password" placeholder="Password"
+        style="letter-spacing:0.1em;font-size:18px" oninput="checkPin()" onkeydown="if(event.key==='Enter')checkPin()">
+      <div id="pinError" style="color:#dc2626;font-size:12px;margin-bottom:12px;min-height:16px"></div>
+      <button onclick="closePinModal()"
+        style="background:var(--cream);color:var(--text);border:1.5px solid var(--border);padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Bio Data Modal -->
+  <div class="bio-modal" id="bioModal">
+    <div class="bio-modal-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:24px">👤</span>
+        <div>
+          <h2 style="font-size:18px;margin:0">Departmental Bio Data</h2>
+          <p style="font-size:11px;opacity:.7;margin:0;text-transform:uppercase;letter-spacing:.05em">NRCC Circuit
+            Personnel Records</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px">
+        <button class="btn btn-navy" onclick="downloadBioData()" style="padding:8px 16px;font-size:13px">📊 Export to
+          Excel</button>
+        <button class="btn btn-outline" onclick="closeBioModal()"
+          style="padding:8px 16px;font-size:13px;color:#fff;border-color:rgba(255,255,255,.3)">Close</button>
+      </div>
+    </div>
+    <div class="bio-body">
+      <table class="bio-table">
+        <thead>
+          <tr>
+            <th style="width:200px">Name</th>
+            <th>Address</th>
+            <th style="width:140px">Contact No.</th>
+            <th>Email</th>
+            <th style="width:120px">Cell Group</th>
+            <th style="width:130px">Date of Birth</th>
+          </tr>
+        </thead>
+        <tbody id="bioTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="app-header">
+    <span class="cross">✝</span>
+    <div style="flex:1">
+      <h1>NRCC Circuit · Monthly Generator</h1>
+      <p>ADO-EKITI Campus — Power, Light &amp; Sound Department</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="openDrawer()"
+        style="background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);padding:7px 14px;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;font-family:inherit">📋
+        Service Log</button>
+      <button onclick="openBioModal()"
+        style="background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);padding:7px 14px;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;font-family:inherit">👤
+        Bio Data</button>
+      <button onclick="clearData()"
+        style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:7px 14px;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;font-family:inherit">🗑
+        Clear Data</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="steps-bar" id="stepsBar"></div>
+    <div id="content"></div>
+  </div>
+
+  <script>
+    // ══════════════════════════════════════════
+    // HELPERS
+    // ══════════════════════════════════════════
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    function getWeekdaysInMonth(year, month, weekday) {
+      const days = [];
+      const d = new Date(year, month, 1);
+      while (d.getMonth() === month) {
+        if (d.getDay() === weekday) days.push(new Date(d));
+        d.setDate(d.getDate() + 1);
+      }
+      return days;
+    }
+    function addDays(date, n) {
+      const d = new Date(date);
+      d.setDate(d.getDate() + n);
+      return d;
+    }
+    function fmtXL(date) {
+      if (!date) return '';
+      const d = new Date(date);
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+    function fmtFull(date) {
+      if (!date) return '—';
+      return new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    function fmtDisplay(date) {
+      if (!date) return '—';
+      return new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    }
+    function ceil10(n) { return Math.ceil(n / 10) * 10; }
+
+    // Reheasal offset from Sunday: Thu=-3, Fri=-2, Sat=-1
+    const REH_OFFSETS = { 4: -3, 5: -2, 6: -1 };
+    function getRehDate(sunday, dayNum) {
+      return addDays(sunday, REH_OFFSETS[dayNum] ?? -2);
+    }
+    function fmtISO(date) {
+      if (!date) return '';
+      const d = new Date(date);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function dateKey(date) { return fmtISO(date); }
+    function getActiveMembers() { return state.teamMembers.filter(m => m.trim()); }
+    function getServiceDatesForRoster() {
+      const dates = [];
+      state.weeks.forEach(wk => {
+        dates.push({ date: wk.wednesday, label: `Mid-Week — ${fmtDisplay(wk.wednesday)}` });
+        dates.push({ date: wk.sunday, label: `Sunday — ${fmtDisplay(wk.sunday)}` });
+        wk.specials.forEach(ev => {
+          if (ev.name && ev.date) dates.push({ date: new Date(ev.date), label: `${ev.name} — ${fmtDisplay(new Date(ev.date))}` });
+        });
+      });
+      return dates.filter(d => d.date).sort((a, b) => new Date(a.date) - new Date(b.date));
+    }
+    function calcMemberScore(member, svcDates) {
+      let total = 0, possible = 0;
+      svcDates.forEach(svc => {
+        const dk = dateKey(svc.date);
+        const p = state.servicePerformance[member]?.[dk];
+        if (!p) return;
+        if (p.onTime) { possible++; if (p.onTime === 'Y') total++; }
+        if (p.dressCode) { possible++; if (p.dressCode === 'Y') total++; }
+        if (p.attended) { possible++; if (p.attended === 'Y') total++; }
+        if (p.tasksDone) { possible++; total += p.tasksDone === 'All' ? 1 : p.tasksDone === 'Most' ? .75 : p.tasksDone === 'Some' ? .5 : 0; }
+        if (p.verified) { possible++; total += p.verified === 'All' ? 1 : p.verified === 'Most' ? .75 : p.verified === 'Some' ? .5 : 0; }
+      });
+      return possible === 0 ? 0 : Math.round((total / possible) * 100);
+    }
+
+    // ══════════════════════════════════════════
+    // STATE
+    // ══════════════════════════════════════════
+    const ROLE_DEFS = [
+      { code: 'GEN', name: 'Generator Operator' },
+      { code: 'MIC', name: 'Microphone Tech' },
+      { code: 'HVAC', name: 'HVAC Operator' },
+      { code: 'SND', name: 'Sound Engineer' },
+      { code: 'REC', name: 'Sound Engineer (Recording)' },
+      { code: 'EXT', name: 'External Sound' },
+      { code: 'COORD', name: 'Service Coordinator' }
+    ];
+    const DEFAULT_STATE = {
+      step: 1,
+      month: new Date().getMonth(),
+      year: new Date().getFullYear(),
+      dieselPrice: 1000,
+      petrolPrice: 845,
+      defaultRehDay: 5,
+      weeks: [],
+      teamMembers: [''],
+      goals: [
+        'Listen to Messages of the week',
+        'Re-listen to Sunday and Midweek messages',
+        'Listen to service recordings and evaluate sound quality',
+        'Sowing seed towards departmental purse'
+      ],
+      seedBalance: '',
+      budgetBalance: '',
+      specialActivities: '',
+      roles: ROLE_DEFS.map(r => ({ ...r, primary: '', alt1: '', alt2: '' })),
+      serviceAssignments: {},
+      servicePerformance: {},
+      spiritualActivities: {},
+      adminPin: 'Circuit25',
+      memberAttendance: {},
+      bioData: []
+    };
+    function loadState() {
+      try {
+        const s = localStorage.getItem('nrcc_circuit_state');
+        if (s) {
+          const parsed = JSON.parse(s);
+          if (!parsed.roles) parsed.roles = ROLE_DEFS.map(r => ({ ...r, primary: '', alt1: '', alt2: '' }));
+          if (!parsed.serviceAssignments) parsed.serviceAssignments = {};
+          if (!parsed.servicePerformance) parsed.servicePerformance = {};
+          if (!parsed.spiritualActivities) parsed.spiritualActivities = {};
+          if (!parsed.serviceLog) parsed.serviceLog = {};
+          if (!parsed.adminPin) parsed.adminPin = 'Circuit25';
+          if (!parsed.memberAttendance) parsed.memberAttendance = {};
+          if (!parsed.bioData) parsed.bioData = [];
+          return parsed;
+        }
+      } catch (e) { }
+      return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    }
+    let _toastTimer = null;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = msg || '\u2713 Saved';
+      t.classList.add('show');
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+    }
+    function saveState() {
+      try { localStorage.setItem('nrcc_circuit_state', JSON.stringify(state)); showToast(); } catch (e) { }
+    }
+    function clearData() {
+      if (!confirm('Clear all data and start fresh for a new month?')) return;
+      localStorage.removeItem('nrcc_circuit_state');
+      const fresh = JSON.parse(JSON.stringify(DEFAULT_STATE));
+      fresh.month = new Date().getMonth();
+      fresh.year = new Date().getFullYear();
+      Object.keys(state).forEach(k => delete state[k]);
+      Object.assign(state, fresh);
+      renderCurrent();
+    }
+    let state = loadState();
+
+    function computeWeeks() {
+      const sundays = getWeekdaysInMonth(state.year, state.month, 0);
+      const prev = state.weeks;
+
+      state.weeks = sundays.map((sunday, i) => {
+        const ex = prev[i] || {};
+        const rehDayNum = ex.rehDayOverride ?? state.defaultRehDay;
+        return {
+          sunday,
+          wednesday: addDays(sunday, -4),
+          rehDayOverride: ex.rehDayOverride ?? null,
+          rehDate: getRehDate(sunday, rehDayNum),
+          specials: ex.specials ?? []
+        };
+      });
+    }
+
+    // ══════════════════════════════════════════
+    // RENDER HELPERS
+    // ══════════════════════════════════════════
+    function stepHasData(n) {
+      if (n === 1) return state.month !== undefined && state.year;
+      if (n === 2) return state.weeks && state.weeks.length > 0;
+      if (n === 3) return state.teamMembers.some(m => m.trim()) || state.seedBalance || state.budgetBalance;
+      if (n === 4) return state.roles && state.roles.some(r => r.primary);
+      if (n === 5) return Object.keys(state.servicePerformance).length > 0;
+      if (n === 6) return Object.keys(state.spiritualActivities).length > 0;
+      return false;
+    }
+    function renderStepsBar() {
+      const defs = [
+        { n: 1, label: 'Month Setup' },
+        { n: 2, label: 'Weekly Events' },
+        { n: 3, label: 'Team & Report' },
+        { n: 4, label: 'Roster' },
+        { n: 5, label: 'Performance' },
+        { n: 6, label: 'Spiritual' },
+        { n: 7, label: 'Generate' }
+      ];
+      return defs.map(s => {
+        const cls = s.n < state.step ? 'done' : s.n === state.step ? 'active' : '';
+        const inner = s.n < state.step ? '&#10003;' : s.n;
+        const dotFilled = s.n < state.step || stepHasData(s.n) ? 'filled' : '';
+        return `<div class="step-tab ${cls}">
+      <div class="step-num">${inner}</div>
+      <div style="font-size:10px; margin-top:2px;">${s.label}</div>
+      <div class="step-dot ${dotFilled}"></div>
+    </div>`;
+      }).join('');
+    }
+
+    // ══════════════════════════════════════════
+    // STEP 1
+    // ══════════════════════════════════════════
+    function renderStep1() {
+      let yearOpts = '';
+      for (let y = state.year - 1; y <= state.year + 2; y++)
+        yearOpts += `<option value="${y}" ${y === state.year ? 'selected' : ''}>${y}</option>`;
+
+      const monthOpts = MONTHS.map((m, i) =>
+        `<option value="${i}" ${i === state.month ? 'selected' : ''}>${m}</option>`).join('');
+
+      return `
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📅</div>
+      <div><h2>Month Setup</h2><div class="card-subtitle">Select the month you're preparing</div></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="field-label">Month</label>
+        <select onchange="state.month=parseInt(this.value)">${monthOpts}</select>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Year</label>
+        <select onchange="state.year=parseInt(this.value)">${yearOpts}</select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">⛽</div>
+      <div><h2>Fuel Prices</h2><div class="card-subtitle">Update if prices have changed</div></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="field-label">Diesel (₦ / litre)</label>
+        <input type="number" value="${state.dieselPrice}" onchange="state.dieselPrice=parseFloat(this.value)||1000">
+      </div>
+      <div class="form-group">
+        <label class="field-label">Petrol (₦ / litre)</label>
+        <input type="number" value="${state.petrolPrice}" onchange="state.petrolPrice=parseFloat(this.value)||845">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🎵</div>
+      <div><h2>Default Rehearsal Day</h2><div class="card-subtitle">You can override per week in the next step</div></div>
+    </div>
+    <div class="radio-group">
+      ${[{ v: 4, l: 'Thursday' }, { v: 5, l: 'Friday' }, { v: 6, l: 'Saturday' }].map(d => `
+        <div class="radio-option">
+          <input type="radio" name="rehDay" id="rd${d.v}" value="${d.v}" ${state.defaultRehDay === d.v ? 'checked' : ''} onchange="state.defaultRehDay=parseInt(this.value); renderCurrent()">
+          <label for="rd${d.v}">${d.l}</label>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <div></div>
+    <button class="btn btn-navy" onclick="goStep2()">Next: Weekly Events →</button>
+  </div>`;
+    }
+
+    // ══════════════════════════════════════════
+    // STEP 2
+    // ══════════════════════════════════════════
+    function renderStep2() {
+      computeWeeks();
+      const hasWarning = state.weeks.some(w =>
+        w.wednesday.getMonth() !== state.month || w.rehDate.getMonth() !== state.month);
+
+      const weeksHtml = state.weeks.map((wk, wi) => {
+        const rehDay = wk.rehDayOverride ?? state.defaultRehDay;
+        const wedWarn = wk.wednesday.getMonth() !== state.month ? ' ⚠️' : '';
+        const rehWarn = wk.rehDate.getMonth() !== state.month ? ' ⚠️' : '';
+
+        const specialsHtml = wk.specials.map((ev, ei) => `
+      <div class="special-event-row">
+        <div class="form-group">
+          <label class="field-label" style="font-size:10px">Event name</label>
+          <input type="text" value="${ev.name}" placeholder="e.g. Family Meeting"
+            onchange="state.weeks[${wi}].specials[${ei}].name=this.value;saveState()">
+        </div>
+        <div class="form-group">
+          <label class="field-label" style="font-size:10px">Date</label>
+          <input type="date" value="${ev.date}"
+            onchange="state.weeks[${wi}].specials[${ei}].date=this.value;saveState()">
+        </div>
+        <div class="form-group">
+          <label class="field-label" style="font-size:10px">Hours</label>
+          <input type="number" step="0.5" min="0.5" value="${ev.hours || 3}"
+            onchange="state.weeks[${wi}].specials[${ei}].hours=parseFloat(this.value)||3;saveState()">
+        </div>
+        <div class="form-group">
+          <label class="field-label" style="font-size:10px">Fuel</label>
+          <select onchange="state.weeks[${wi}].specials[${ei}].fuelType=this.value;state.weeks[${wi}].specials[${ei}].litresPerHour=this.value==='diesel'?12:2.5;saveState()">
+            <option value="petrol"${(ev.fuelType || 'petrol') === 'petrol' ? ' selected' : ''}>Petrol</option>
+            <option value="diesel"${ev.fuelType === 'diesel' ? ' selected' : ''}>Diesel</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="field-label" style="font-size:10px">L/Hr</label>
+          <input type="number" step="0.5" min="0.5" value="${ev.litresPerHour || 2.5}"
+            onchange="state.weeks[${wi}].specials[${ei}].litresPerHour=parseFloat(this.value)||2.5;saveState()">
+        </div>
+        <button class="btn btn-icon" onclick="rmSpecial(${wi},${ei})" style="align-self:flex-end">✕</button>
+      </div>
+    `).join('');
+
+        return `
+    <div class="week-card">
+      <div class="week-card-head">
+        <span class="week-label">Week ${wi + 1}</span>
+        <span class="week-range">${MONTHS[state.month]} ${state.year}</span>
+      </div>
+      <div class="week-body">
+        <div class="event-row">
+          <div class="event-dot dot-diesel"></div>
+          <div class="event-name">Midweek Service</div>
+          <div class="event-date-text">${fmtDisplay(wk.wednesday)}${wedWarn}</div>
+          <span class="event-badge badge-d">DIESEL</span>
+        </div>
+        <div class="event-row">
+          <div class="event-dot dot-diesel"></div>
+          <div class="event-name">Sunday Service</div>
+          <div class="event-date-text">${fmtDisplay(wk.sunday)}</div>
+          <span class="event-badge badge-d">DIESEL</span>
+        </div>
+        <div class="event-row">
+          <div class="event-dot dot-petrol"></div>
+          <div class="event-name">Expression Rehearsal</div>
+          <div class="event-date-text">${fmtDisplay(wk.rehDate)}${rehWarn}</div>
+          <span class="event-badge badge-p">PETROL</span>
+          <div class="rehearsal-override">
+            <select onchange="overrideReh(${wi},this.value)" style="width:auto;padding:4px 8px;font-size:11px;border-radius:6px;">
+              <option value="">Default (${DAYS[state.defaultRehDay]})</option>
+              ${[4, 5, 6].filter(d => d !== state.defaultRehDay).map(d =>
+          `<option value="${d}" ${wk.rehDayOverride === d ? 'selected' : ''}>${DAYS[d]}</option>`
+        ).join('')}
+            </select>
+          </div>
+        </div>
+
+        ${wk.specials.length > 0 ? `
+          <div class="special-events-area">
+            <div class="special-events-title">Special events</div>
+            ${specialsHtml}
+          </div>
+        ` : ''}
+
+        <button class="btn btn-ghost-add" style="margin-top:8px;" onclick="addSpecial(${wi})">
+          + Add special event to Week ${wi + 1}
+        </button>
+      </div>
+    </div>`;
+      }).join('');
+
+      return `
+  ${hasWarning ? `<div class="alert alert-warn">⚠️ Some dates fall outside ${MONTHS[state.month]}. This is normal for the first/last week. They'll still be included in your budget.</div>` : ''}
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📋</div>
+      <div>
+        <h2>Weekly Events — ${MONTHS[state.month]} ${state.year}</h2>
+        <div class="card-subtitle">Dates are auto-calculated. Override rehearsal day or add special events as needed.</div>
+      </div>
+    </div>
+    ${weeksHtml}
+  </div>
+
+  <div class="nav-row">
+    <button class="btn btn-outline" onclick="goStep(1)">← Back</button>
+    <button class="btn btn-navy" onclick="goStep(3)">Next: Report Details →</button>
+  </div>`;
+    }
+
+    // ══════════════════════════════════════════
+    // STEP 3
+    // ══════════════════════════════════════════
+    function renderStep3() {
+      const teamHtml = state.teamMembers.map((m, i) => `
+    <div class="list-item">
+      <span class="list-num">${i + 1}.</span>
+      <input type="text" value="${m}" placeholder="Name — Role (e.g. John Adeyemi — Sound)"
+        onchange="state.teamMembers[${i}]=this.value">
+      <button class="btn btn-icon" onclick="rmItem('teamMembers',${i})">✕</button>
+    </div>`).join('');
+
+      const goalsHtml = state.goals.map((g, i) => `
+    <div class="list-item">
+      <span class="list-num">${i + 1}.</span>
+      <input type="text" value="${g}" placeholder="Goal..."
+        onchange="state.goals[${i}]=this.value">
+      <button class="btn btn-icon" onclick="rmItem('goals',${i})">✕</button>
+    </div>`).join('');
+
+      return `
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">👥</div>
+      <div><h2>Team Members</h2><div class="card-subtitle">Current serving members of the Circuit dept.</div></div>
+    </div>
+    ${teamHtml}
+    <button class="btn btn-ghost-add" onclick="addItem('teamMembers')">+ Add team member</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🎯</div>
+      <div><h2>Departmental Goals — ${MONTHS[state.month]}</h2><div class="card-subtitle">Goals set for this month</div></div>
+    </div>
+    ${goalsHtml}
+    <button class="btn btn-ghost-add" onclick="addItem('goals')">+ Add goal</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">💰</div>
+      <div><h2>Financial Figures</h2><div class="card-subtitle">End-of-month account balances</div></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="field-label">Departmental Seed Account (₦)</label>
+        <input type="text" value="${state.seedBalance}" placeholder="e.g. 45,000"
+          onchange="state.seedBalance=this.value">
+      </div>
+      <div class="form-group">
+        <label class="field-label">Budget &amp; Expense Account (₦)</label>
+        <input type="text" value="${state.budgetBalance}" placeholder="e.g. 120,000"
+          onchange="state.budgetBalance=this.value">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📝</div>
+      <div><h2>Special Activities / Notes</h2><div class="card-subtitle">Notable events or achievements this month</div></div>
+    </div>
+    <textarea placeholder="e.g. The department successfully coordinated sound for the Anniversary Sunday..." onchange="state.specialActivities=this.value">${state.specialActivities}</textarea>
+  </div>
+
+  <div class="nav-row">
+    <button class="btn btn-outline" onclick="goStep(2)">← Back</button>
+    <button class="btn btn-navy" onclick="goStep(4)">Next: Roster →</button>
+  </div>`;
+    }
+
+    // ══════════════════════════════════════════
+    // STEP 4 — ROSTER & ASSIGNMENTS
+    // ══════════════════════════════════════════
+    function renderStep4() {
+      const members = getActiveMembers();
+      const mo = `${MONTHS[state.month]} ${state.year}`;
+      const memberOpts = (sel) => `<option value="">— Assign —</option>` +
+        members.map(m => `<option value="${m}"${m === sel ? ' selected' : ''}>${m}</option>`).join('');
+      const rolesHtml = state.roles.map((r, ri) => `<tr>
+        <td><span class="role-badge">${r.code}</span></td>
+        <td><input type="text" value="${r.name}" style="padding:5px 8px;font-size:12px" onchange="state.roles[${ri}].name=this.value;saveState()"></td>
+        <td><select onchange="state.roles[${ri}].primary=this.value;saveState()">${memberOpts(r.primary)}</select></td>
+        <td><select onchange="state.roles[${ri}].alt1=this.value;saveState()">${memberOpts(r.alt1)}</select></td>
+        <td><select onchange="state.roles[${ri}].alt2=this.value;saveState()">${memberOpts(r.alt2)}</select></td>
+      </tr>`).join('');
+      const svcDates = getServiceDatesForRoster();
+      const roleHdrs = state.roles.map(r => `<th>${r.code}</th>`).join('');
+      const assignHtml = svcDates.map(svc => {
+        const dk = dateKey(svc.date);
+        if (!state.serviceAssignments[dk]) state.serviceAssignments[dk] = {};
+        const cols = state.roles.map((r, ri) => {
+          const assigned = state.serviceAssignments[dk][r.code] || '';
+          return `<td><select style="font-size:11px;padding:4px 6px" onchange="state.serviceAssignments['${dk}']['${r.code}']=this.value;saveState()">${memberOpts(assigned)}</select></td>`;
+        }).join('');
+        return `<tr><td style="white-space:nowrap;font-size:12px;font-weight:600">${svc.label}</td>${cols}</tr>`;
+      }).join('');
+      return `
+  <div class="card">
+    <div class="card-header"><div class="card-icon">📋</div><div><h2>Role Definitions</h2><div class="card-subtitle">Set Primary and Alternates for each role</div></div></div>
+    <div style="overflow-x:auto"><table class="roster-grid">
+      <thead><tr><th>Code</th><th>Role Name</th><th>Primary</th><th>Alternate 1</th><th>Alternate 2</th></tr></thead>
+      <tbody>${rolesHtml}</tbody>
+    </table></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-icon">🗓️</div><div><h2>Service Assignments — ${mo}</h2><div class="card-subtitle">Who fills each role per service date</div></div></div>
+    ${svcDates.length === 0 ? '<div class="alert alert-info">Complete Step 2 (Weekly Events) first to see service dates here.</div>' : ''}
+    <div style="overflow-x:auto"><table class="roster-grid">
+      <thead><tr><th>Service Date</th>${roleHdrs}</tr></thead>
+      <tbody>${assignHtml}</tbody>
+    </table></div>
+  </div>
+  <div class="nav-row"><button class="btn btn-outline" onclick="goStep(3)">← Back</button><button class="btn btn-navy" onclick="goStep(5)">Next: Performance →</button></div>`;
+    }
+
+    // ══════════════════════════════════════════
+    // STEP 5 — SERVICE PERFORMANCE TRACKER
+    // ══════════════════════════════════════════
+    function renderStep5() {
+      const members = getActiveMembers();
+      const svcDates = getServiceDatesForRoster();
+      if (members.length === 0) return `<div class="card"><div class="alert alert-warn">Add team members in Step 3 first.</div></div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(4)">← Back</button></div>`;
+      members.forEach(m => {
+        if (!state.servicePerformance[m]) state.servicePerformance[m] = {};
+        svcDates.forEach(svc => {
+          const dk = dateKey(svc.date);
+          if (!state.servicePerformance[m][dk]) state.servicePerformance[m][dk] = { onTime: '', dressCode: '', attended: '', tasksDone: '', verified: '' };
+        });
+      });
+      const yn = (m, dk, f) => { const v = state.servicePerformance[m]?.[dk]?.[f] || ''; return `<select style="width:50px;font-size:11px;padding:2px 3px" onchange="setPerf('${m.replace(/'/g, "\\'")}','${dk}','${f}',this.value)"><option value=""${v === '' ? ' selected' : ''}>—</option><option value="Y"${v === 'Y' ? ' selected' : ''}>Y</option><option value="N"${v === 'N' ? ' selected' : ''}>N</option></select>`; };
+      const amns = (m, dk, f) => { const v = state.servicePerformance[m]?.[dk]?.[f] || ''; return `<select style="width:58px;font-size:11px;padding:2px 3px" onchange="setPerf('${m.replace(/'/g, "\\'")}','${dk}','${f}',this.value)"><option value=""${v === '' ? ' selected' : ''}>—</option><option value="All"${v === 'All' ? ' selected' : ''}>All</option><option value="Most"${v === 'Most' ? ' selected' : ''}>Most</option><option value="Some"${v === 'Some' ? ' selected' : ''}>Some</option><option value="None"${v === 'None' ? ' selected' : ''}>None</option></select>`; };
+      const dateHeaders = svcDates.map(s => `<th colspan="5" style="border-left:2px solid rgba(255,255,255,.3)">${fmtDisplay(s.date)}<span class="date-hdr-sub">${s.label.split('—')[0].trim()}</span></th>`).join('');
+      const subHeaders = svcDates.map(() => `<th>Time</th><th>Dress</th><th>Attend</th><th>Tasks</th><th>Verified</th>`).join('');
+      const rows = members.map(m => {
+        const score = calcMemberScore(m, svcDates);
+        const cls = score >= 80 ? 'sc-a' : score >= 60 ? 'sc-b' : 'sc-c';
+        const cells = svcDates.map(s => { const dk = dateKey(s.date); return `<td style="border-left:2px solid #e5e7eb">${yn(m, dk, 'onTime')}</td><td>${yn(m, dk, 'dressCode')}</td><td>${yn(m, dk, 'attended')}</td><td>${amns(m, dk, 'tasksDone')}</td><td>${amns(m, dk, 'verified')}</td>`; }).join('');
+        return `<tr><td class="name-col">${m}<br><span class="${cls}" style="font-size:11px;font-weight:700">${score}%</span></td>${cells}</tr>`;
+      }).join('');
+      const scoreCards = members.map(m => { const s = calcMemberScore(m, svcDates); const cls = s >= 80 ? 'sc-a' : s >= 60 ? 'sc-b' : 'sc-c'; return `<div class="score-card"><div class="sc-name">${m.split(' ')[0]}</div><div class="sc-score ${cls}">${s}%</div><div class="sc-label">Performance</div></div>`; }).join('');
+      return `
+  <div class="card">
+    <div class="card-header"><div class="card-icon">📊</div><div><h2>Steward Performance — ${MONTHS[state.month]} ${state.year}</h2><div class="card-subtitle">Mark Y/N for each metric. Scores auto-calculate.</div></div></div>
+    <div class="score-cards">${scoreCards}</div>
+    ${svcDates.length === 0 ? '<div class="alert alert-info">Complete Step 2 first to see service dates here.</div>' : ''}
+    <div class="perf-table-wrap"><table class="perf-table">
+      <thead><tr><th class="name-col" rowspan="2">Steward</th>${dateHeaders}</tr><tr>${subHeaders}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>
+  <div class="nav-row"><button class="btn btn-outline" onclick="goStep(4)">← Back</button><button class="btn btn-navy" onclick="goStep(6)">Next: Spiritual Activities →</button></div>`;
+    }
+
+    // ══════════════════════════════════════════
+    // STEP 6 — SPIRITUAL ACTIVITIES
+    // ══════════════════════════════════════════
+    function renderStep6() {
+      const members = getActiveMembers();
+      const nw = state.weeks.length || 5;
+      members.forEach(m => { if (!state.spiritualActivities[m]) state.spiritualActivities[m] = { friday: Array(5).fill(''), saturday: Array(5).fill('') }; });
+      const weekHdrs = Array.from({ length: nw }, (_, i) => `<th>Wk ${i + 1}</th>`).join('');
+      const makeRows = (act) => members.map(m => {
+        const data = state.spiritualActivities[m]?.[act] || Array(5).fill('');
+        const total = data.filter(v => v === 'Y').length;
+        const cells = Array.from({ length: nw }, (_, wi) => { const v = data[wi] || ''; return `<td><select style="width:48px;font-size:11px;padding:2px 3px" onchange="setSpiritActivity('${m.replace(/'/g, "\\'")}','${act}',${wi},this.value)"><option value=""${v === '' ? ' selected' : ''}>—</option><option value="Y"${v === 'Y' ? ' selected' : ''}>Y</option><option value="N"${v === 'N' ? ' selected' : ''}>N</option></select></td>`; }).join('');
+        return `<tr><td class="name-col">${m}</td>${cells}<td class="total-col">${total}/${nw}</td></tr>`;
+      }).join('');
+      const tHead = `<thead><tr><th style="text-align:left;min-width:130px">Steward Name</th>${weekHdrs}<th>Total</th></tr></thead>`;
+      return `
+  <div class="card">
+    <div class="card-header"><div class="card-icon">🙏</div><div><h2>Spiritual Activities Log — ${MONTHS[state.month]} ${state.year}</h2><div class="card-subtitle">Track Friday meeting and Saturday prayer attendance by week</div></div></div>
+    <div class="spirit-section-head">FRIDAY DEPARTMENTAL MEETINGS</div>
+    <div style="overflow-x:auto"><table class="spirit-table">${tHead}<tbody>${makeRows('friday')}</tbody></table></div>
+    <div class="spirit-section-head">SATURDAY ONLINE PRAYER (9–10PM)</div>
+    <div style="overflow-x:auto"><table class="spirit-table">${tHead}<tbody>${makeRows('saturday')}</tbody></table></div>
+  </div>
+  <div class="nav-row"><button class="btn btn-outline" onclick="goStep(5)">← Back</button><button class="btn btn-navy" onclick="goStep(7)">Next: Generate →</button></div>`;
+    }
+
+    // ══════════════════════════════════════════
+    // STEP 7 — GENERATE
+    // ══════════════════════════════════════════
+    function renderStep7() {
+      const totalSpecials = state.weeks.reduce((a, w) => a + w.specials.length, 0);
+      const D = state.dieselPrice, P = state.petrolPrice;
+      const rehCPH = ceil10(2.5 * P);
+      let grandTotal = 0;
+      const weekCosts = state.weeks.map((wk, i) => {
+        let dieselAmt = 12 * D * 2.5 + 12 * D * 4;
+        let petrolAmt = rehCPH * 3;
+        wk.specials.forEach(ev => {
+          const lph = ev.litresPerHour || 2.5, ft = ev.fuelType || 'petrol';
+          const cost = ceil10(lph * (ft === 'diesel' ? D : P)) * (ev.hours || 3);
+          if (ft === 'diesel') dieselAmt += cost; else petrolAmt += cost;
+        });
+        const sub = dieselAmt + petrolAmt;
+        grandTotal += sub;
+        return { i, dieselAmt, petrolAmt, sub };
+      });
+      const members = getActiveMembers();
+      const svcDates = getServiceDatesForRoster();
+      const scoreCards = members.length > 0 ? `<div class="score-cards">${members.map(m => { const s = calcMemberScore(m, svcDates); const cls = s >= 80 ? 'sc-a' : s >= 60 ? 'sc-b' : 'sc-c'; return `<div class="score-card"><div class="sc-name">${m.split(' ')[0]}</div><div class="sc-score ${cls}">${s}%</div><div class="sc-label">Performance</div></div>`; }).join('')}</div>` : '';
+      const tableRows = state.weeks.map((wk, i) => {
+        const sp = wk.specials.filter(e => e.name).map(e => `<span class="tag tag-sp">${e.name}</span>`).join('');
+        return `<tr><td><strong>Week ${i + 1}</strong></td><td>${fmtDisplay(wk.wednesday)}</td><td>${fmtDisplay(wk.sunday)}</td><td>${fmtDisplay(wk.rehDate)}</td><td>${sp || '\u2014'}</td></tr>`;
+      }).join('');
+      const costBreakdownRows = weekCosts.map(wc => `
+        <div class="week-cost-row">
+          <span style="font-weight:700;min-width:64px">Week ${wc.i + 1}</span>
+          <span class="week-cost-label"><span class="tag tag-d" style="margin-right:4px">D</span>\u20a6${wc.dieselAmt.toLocaleString()}</span>
+          <span class="week-cost-label"><span class="tag tag-p" style="margin-right:4px">P</span>\u20a6${wc.petrolAmt.toLocaleString()}</span>
+          <span class="week-cost-amt">\u20a6${wc.sub.toLocaleString()}</span>
+        </div>`).join('');
+      const mo = MONTHS[state.month], yr = state.year;
+      return `
+  <div class="save-note"><strong>&#128190; Save to OneDrive after downloading:</strong> OneDrive &#8594; NRCC Circuit &#8594; ${yr} &#8594; ${mo} &#8594; paste the downloaded files here.</div>
+  <div class="gen-hero">
+    <div class="month-chip">${mo.toUpperCase()} ${yr}</div>
+    <h2>Ready to generate your files</h2>
+    <div class="gen-sub">${state.weeks.length} service weeks &middot; ${totalSpecials} special event${totalSpecials !== 1 ? 's' : ''} &middot; Est. total: &#8358;${grandTotal.toLocaleString()}</div>
+    <div class="gen-btns">
+      <button class="btn btn-gen-excel" onclick="generateExcel()">&#128202; Download Budget (Excel)</button>
+      <button class="btn btn-gen-word" onclick="generateWord()">&#128196; Download Report (Word)</button>
+    </div>
+  </div>
+  ${members.length > 0 ? `<div class="card"><div class="card-header"><div class="card-icon">&#128202;</div><div><h2>Performance Summary</h2></div></div>${scoreCards}</div>` : ''}
+  <div class="card">
+    <div class="card-header"><div class="card-icon">&#128176;</div><div><h2>Weekly Cost Breakdown</h2><div class="card-subtitle">Diesel + Petrol split per week</div></div></div>
+    ${costBreakdownRows}
+    <div class="week-cost-row" style="border-top:2px solid var(--border);margin-top:8px;padding-top:10px;font-size:14px">
+      <span style="font-weight:700">GRAND TOTAL</span>
+      <span class="week-cost-label"></span>
+      <span class="week-cost-label"></span>
+      <span class="week-cost-amt" style="font-size:16px;color:var(--gold)">&#8358;${grandTotal.toLocaleString()}</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-icon">&#128203;</div><div><h2>Events Summary</h2></div></div>
+    <table class="summary-table">
+      <thead><tr><th>Week</th><th><span class="tag tag-d">DIESEL</span> Midweek</th><th><span class="tag tag-d">DIESEL</span> Sunday</th><th><span class="tag tag-p">PETROL</span> Rehearsal</th><th>Special Events</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>
+  <div class="nav-row"><button class="btn btn-outline" onclick="goStep(6)">&#8592; Back</button><div></div></div>`;
+    }
+
+    // ══════════════════════════════════════════
+    // EXCEL GENERATOR  — Styled HTML-XLS
+    // ══════════════════════════════════════════
+    function generateExcel() {
+      const D = state.dieselPrice, P = state.petrolPrice;
+      const rehCPH = ceil10(2.5 * P);
+      const mo = MONTHS[state.month], yr = state.year;
+      let grandTotal = 0;
+
+      const css = `
+        body{font-family:Arial,sans-serif;font-size:10pt}
+        table{border-collapse:collapse;width:100%}
+        .hc{background:#0f1f3d;color:#fff;text-align:center;padding:8px 6px;font-weight:bold}
+        .hg{background:#c9972c;padding:3px}
+        .hw{background:#1a3260;color:#fff;font-size:10.5pt;font-weight:bold;padding:6px 8px}
+        .th{background:#243e7a;color:#fff;font-weight:bold;text-align:center;border:1px solid #1a2f6a;padding:5px 4px;font-size:9pt;vertical-align:middle}
+        .th2{background:#f4ede0;font-weight:bold;text-align:center;border:1px solid #ccc;padding:4px;font-size:9pt}
+        td.d{border:1px solid #ccc;padding:4px 6px;font-size:9.5pt;vertical-align:middle}
+        td.dc{border:1px solid #ccc;padding:4px 6px;font-size:9.5pt;text-align:center;vertical-align:middle}
+        td.dr{border:1px solid #ccc;padding:4px 6px;font-size:9.5pt;text-align:right;vertical-align:middle}
+        .fd{background:#fff3e0;color:#7b3800;font-weight:bold;text-align:center;border:1px solid #ccc;padding:4px 6px;font-size:9.5pt;vertical-align:middle;writing-mode:horizontal-tb}
+        .fp{background:#e3f2fd;color:#0d47a1;font-weight:bold;text-align:center;border:1px solid #ccc;padding:4px 6px;font-size:9.5pt;vertical-align:middle}
+        .sub{background:#fffbeb;font-weight:bold}
+        .gt{background:#c9972c;color:#0f1f3d;font-weight:bold;font-size:11pt}
+        .sp{height:8px}`;
+
+      let weeksHtml = '';
+      state.weeks.forEach((wk, wi) => {
+        const ds = wk.specials.filter(e => e.name && e.fuelType === 'diesel');
+        const ps = wk.specials.filter(e => e.name && (e.fuelType || 'petrol') === 'petrol');
+        const midAmt = 12 * D * 2.5, sunAmt = 12 * D * 4, rehAmt = rehCPH * 3;
+        let weekSub = midAmt + sunAmt + rehAmt;
+        ds.forEach(e => { weekSub += ceil10((e.litresPerHour || 12) * D) * (e.hours || 3); });
+        ps.forEach(e => { weekSub += ceil10((e.litresPerHour || 2.5) * P) * (e.hours || 3); });
+        grandTotal += weekSub;
+
+        const dRS = 2 + ds.length, pRS = 1 + ps.length;
+        let dsRows = ds.map(e => {
+          const lph = e.litresPerHour || 12, cphr = ceil10(lph * D), amt = cphr * (e.hours || 3);
+          return `<tr><td class="d">${e.name}</td><td class="dc">${lph}</td><td class="dr">₦${D.toLocaleString()}</td><td class="dr">₦${cphr.toLocaleString()}</td><td class="d">${e.name}</td><td class="dc">${e.date ? fmtXL(new Date(e.date)) : ''}</td><td class="dr"><b>₦${amt.toLocaleString()}</b></td><td class="dc">${e.hours || 3}</td></tr>`;
+        }).join('');
+        let psRows = ps.map(e => {
+          const lph = e.litresPerHour || 2.5, cphr = ceil10(lph * P), amt = cphr * (e.hours || 3);
+          return `<tr><td class="d">${e.name}</td><td class="dc">${lph}</td><td class="dr">₦${P.toLocaleString()}</td><td class="dr">₦${cphr.toLocaleString()}</td><td class="d">${e.name}</td><td class="dc">${e.date ? fmtXL(new Date(e.date)) : ''}</td><td class="dr"><b>₦${amt.toLocaleString()}</b></td><td class="dc">${e.hours || 3}</td></tr>`;
+        }).join('');
+
+        weeksHtml += `
+        <tr><td colspan="9" class="hw">Budget for Week ${wi + 1} &nbsp;—&nbsp; <span style="font-size:9pt;color:#adc6ff">Midweek: ${fmtFull(wk.wednesday)} &nbsp;|&nbsp; Sunday: ${fmtFull(wk.sunday)} &nbsp;|&nbsp; Rehearsal: ${fmtFull(wk.rehDate)}</span></td></tr>
+        <tr><th class="th">FUEL</th><th class="th">ITEMS</th><th class="th">L/Hr</th><th class="th">₦/Litre</th><th class="th">Cost/Hr (₦)</th><th class="th">EVENT</th><th class="th">DATE</th><th class="th">AMOUNT (₦)</th><th class="th">Hours</th></tr>
+        <tr>
+          <td rowspan="${dRS}" class="fd">DIESEL</td>
+          <td class="dc">Generator</td><td class="dc">12</td><td class="dr">₦${D.toLocaleString()}</td><td class="dr">₦${(12 * D).toLocaleString()}</td>
+          <td class="d">Mid-Week Service</td><td class="dc">${fmtXL(wk.wednesday)}</td><td class="dr"><b>₦${midAmt.toLocaleString()}</b></td><td class="dc">2.5</td>
+        </tr>
+        <tr><td class="dc">Generator</td><td class="dc">12</td><td class="dr">₦${D.toLocaleString()}</td><td class="dr">₦${(12 * D).toLocaleString()}</td>
+          <td class="d">Sunday Service</td><td class="dc">${fmtXL(wk.sunday)}</td><td class="dr"><b>₦${sunAmt.toLocaleString()}</b></td><td class="dc">4</td></tr>
+        ${dsRows}
+        <tr>
+          <td rowspan="${pRS}" class="fp">PETROL</td>
+          <td class="dc">Generator</td><td class="dc">2.5</td><td class="dr">₦${P.toLocaleString()}</td><td class="dr">₦${rehCPH.toLocaleString()}</td>
+          <td class="d">Expression Rehearsals</td><td class="dc">${fmtXL(wk.rehDate)}</td><td class="dr"><b>₦${rehAmt.toLocaleString()}</b></td><td class="dc">3</td>
+        </tr>
+        ${psRows}
+        <tr class="sub"><td colspan="7" class="dr sub" style="border:1px solid #ccc;padding:4px 6px">WEEK ${wi + 1} SUBTOTAL</td><td class="dr sub" style="border:1px solid #ccc;padding:4px 6px"><b>₦${weekSub.toLocaleString()}</b></td><td class="dc sub" style="border:1px solid #ccc"></td></tr>
+        <tr><td colspan="9" class="sp"></td></tr>`;
+      });
+
+      const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8">
+<xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Budget ${mo} ${yr}</x:Name>
+<x:WorksheetOptions><x:Print><x:PaperSizeIndex>9</x:PaperSizeIndex><x:Landscape/><x:FitToPage/><x:FitWidth>1</x:FitWidth><x:FitHeight>99</x:FitHeight></x:Print></x:WorksheetOptions>
+</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml>
+<style>${css}</style></head>
+<body><table>
+<colgroup><col style="width:70px"><col style="width:110px"><col style="width:50px"><col style="width:80px"><col style="width:80px"><col style="width:190px"><col style="width:90px"><col style="width:95px"><col style="width:50px"></colgroup>
+<tr><td colspan="9" class="hc" style="font-size:15pt;padding:12px">NEW REALITY CHRISTIAN CENTRE</td></tr>
+<tr><td colspan="9" class="hc" style="font-size:11pt;color:#c9972c">ADO-EKITI CAMPUS</td></tr>
+<tr><td colspan="9" class="hc" style="font-size:10.5pt">CIRCUIT DEPARTMENT CONSOLIDATED BUDGET FOR ${mo.toUpperCase()} ${yr}</td></tr>
+<tr><td colspan="9" class="hg"></td></tr>
+<tr><td colspan="9" class="sp"></td></tr>
+${weeksHtml}
+<tr class="gt"><td colspan="7" style="text-align:right;padding:8px;border:1px solid #a07020">GRAND TOTAL — ${mo.toUpperCase()} ${yr}</td><td style="text-align:right;padding:8px;border:1px solid #a07020"><b>₦${grandTotal.toLocaleString()}</b></td><td style="border:1px solid #a07020"></td></tr>
+<tr><td colspan="9" class="sp"></td></tr>
+<tr><td colspan="9" style="font-size:8pt;color:#666;padding:4px 6px">Note: Diesel at ₦${D.toLocaleString()}/ltr · Petrol at ₦${P.toLocaleString()}/ltr &nbsp;&nbsp;&nbsp; Prepared by: _________________________ &nbsp;&nbsp; Date: _________________________</td></tr>
+</table></body></html>`;
+
+      const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=UTF-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `NRCC ADO Circuit - ${mo} ${yr}.xls`; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ══════════════════════════════════════════
+    // WORD / HTML-DOC GENERATOR
+    // ══════════════════════════════════════════
+    function generateWord() {
+      const mo = MONTHS[state.month];
+      const yr = state.year;
+      const D = state.dieselPrice;
+      const P = state.petrolPrice;
+      const rehCPH = ceil10(2.5 * P);
+      let grandTotal = 0;
+      state.weeks.forEach(wk => {
+        grandTotal += 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3;
+        wk.specials.forEach(ev => {
+          const lph = ev.litresPerHour || 2.5, ft = ev.fuelType || 'petrol';
+          grandTotal += ceil10(lph * (ft === 'diesel' ? D : P)) * (ev.hours || 3);
+        });
+      });
+      const membersLi = state.teamMembers.filter(m => m.trim()).map(m => `<li>${m}</li>`).join('') || '<li>[No members listed]</li>';
+      const goalsLi = state.goals.filter(g => g.trim()).map(g => `<li>${g}</li>`).join('') || '<li>[No goals listed]</li>';
+      const serviceRows = state.weeks.map((wk, i) => `<tr><td>Week ${i + 1}</td><td>${fmtFull(wk.wednesday)}</td><td>${fmtFull(wk.sunday)}</td><td>${fmtFull(wk.rehDate)}</td><td>${wk.specials.filter(e => e.name).map(e => e.name).join(', ') || '\u2014'}</td></tr>`).join('');
+      // Steward performance section
+      const members = getActiveMembers();
+      const svcDates = getServiceDatesForRoster();
+      let perfSection = '';
+      if (members.length > 0) {
+        const perfRows = members.map(m => {
+          const sc = calcMemberScore(m, svcDates);
+          const col = sc >= 80 ? '#155724' : sc >= 60 ? '#856404' : '#842029';
+          const bg = sc >= 80 ? '#d4edda' : sc >= 60 ? '#fff3cd' : '#f8d7da';
+          return `<tr><td>${m}</td><td style="text-align:center"><strong style="color:${col};background:${bg};padding:2pt 6pt;border-radius:3pt">${sc}%</strong></td></tr>`;
+        }).join('');
+        perfSection = `<h2>Steward Performance Summary</h2><table><thead><tr><th>Steward</th><th>Monthly Score</th></tr></thead><tbody>${perfRows}</tbody></table>`;
+      }
+      // Spiritual activities section
+      let spiritSection = '';
+      if (members.length > 0) {
+        const nw = state.weeks.length || 5;
+        const spiritRows = members.map(m => {
+          const fr = (state.spiritualActivities[m]?.friday || []).filter(v => v === 'Y').length;
+          const sa = (state.spiritualActivities[m]?.saturday || []).filter(v => v === 'Y').length;
+          return `<tr><td>${m}</td><td style="text-align:center">${fr}/${nw}</td><td style="text-align:center">${sa}/${nw}</td></tr>`;
+        }).join('');
+        spiritSection = `<h2>Spiritual Activities</h2><table><thead><tr><th>Steward</th><th>Friday Meetings (${nw} wks)</th><th>Saturday Prayer (${nw} wks)</th></tr></thead><tbody>${spiritRows}</tbody></table>`;
+      }
+      // Roster summary
+      let rosterSection = '';
+      if (state.roles && state.roles.some(r => r.primary)) {
+        const rRows = state.roles.map(r => `<tr><td><strong>${r.code}</strong></td><td>${r.name}</td><td>${r.primary || '\u2014'}</td><td>${r.alt1 || '\u2014'}</td><td>${r.alt2 || '\u2014'}</td></tr>`).join('');
+        rosterSection = `<h2>Roster &amp; Role Assignments</h2><table><thead><tr><th>Code</th><th>Role</th><th>Primary</th><th>Alternate 1</th><th>Alternate 2</th></tr></thead><tbody>${rRows}</tbody></table>`;
+      }
+      const html = `
+<html xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset='utf-8'>
+<title>Circuit Dept Report ${mo} ${yr}</title>
+<style>
+  body { font-family: Calibri, sans-serif; font-size: 12pt; margin: 2.54cm 2.54cm; line-height: 1.5; color: #111; }
+  .church { text-align: center; font-size: 18pt; font-weight: bold; text-transform: uppercase; margin-bottom: 4pt; }
+  .dept-title { text-align: center; font-size: 13pt; margin-bottom: 4pt; }
+  .report-month { text-align: center; font-size: 14pt; font-weight: bold; margin-bottom: 20pt; }
+  h2 { font-size: 12pt; font-weight: bold; text-transform: uppercase; border-bottom: 2px solid #0f1f3d; padding-bottom: 3pt; margin: 18pt 0 8pt; color: #0f1f3d; letter-spacing: 0.05em; }
+  p { margin: 0 0 8pt; }
+  ul { margin: 0 0 8pt 24pt; }
+  li { margin-bottom: 4pt; }
+  table { width: 100%; border-collapse: collapse; margin: 8pt 0; font-size: 11pt; }
+  th { background: #0f1f3d; color: white; padding: 7pt 8pt; text-align: left; font-size: 10pt; }
+  td { border: 1pt solid #ccc; padding: 6pt 8pt; }
+  tr:nth-child(even) td { background: #f7f7f7; }
+  .total-row td { font-weight: bold; background: #fffbeb !important; }
+  .section-note { font-style: italic; color: #555; font-size: 11pt; }
+</style>
+</head>
+<body>
+
+<div class="church">NEW REALITY CHRISTIAN CENTRE</div>
+<div class="dept-title">ADO-EKITI CAMPUS</div>
+<div class="report-month">CIRCUIT DEPARTMENT REPORT &mdash; ${mo.toUpperCase()} ${yr}</div>
+
+<h2>Introduction</h2>
+<p>The Circuit department is a service of the Church, and it is primarily responsible for providing technical support to the operations of the Church. The Circuit has a special role similar to the lubricating oil in the engine of a car &mdash; they provide service to every other department to ensure their work is easier and the congregation has a good worship experience. The department makes other ministries look and sound their best by working behind the scenes, ensuring a successful light and sound experience for the entire congregation during church services and other church events.</p>
+
+<h2>Departmental Members</h2>
+<p>The following people are currently serving in the Circuit department:</p>
+<ul>${membersLi}</ul>
+
+<h2>Departmental Goals for ${mo} ${yr}</h2>
+<ul>${goalsLi}</ul>
+
+<h2>Ministry Activities</h2>
+<p><strong>Departmental Meetings:</strong> The departmental meeting holds with Expression Rehearsal weekly. Meetings run from 9:00pm to 10:00pm.</p>
+<p><strong>Online Prayers:</strong> Online prayers on WhatsApp every Saturday from 9:00pm &ndash; 10:00pm.</p>
+${state.specialActivities ? `<p><strong>Special Activities:</strong> ${state.specialActivities}</p>` : ''}
+
+<h2>Services &amp; Events &mdash; ${mo} ${yr}</h2>
+<table>
+  <thead><tr><th>Week</th><th>Midweek Service</th><th>Sunday Service</th><th>Rehearsal</th><th>Special Events</th></tr></thead>
+  <tbody>${serviceRows}</tbody>
+</table>
+
+${rosterSection}
+${perfSection}
+${spiritSection}
+
+<h2>Financial Details</h2>
+<table>
+  <thead><tr><th>Account</th><th>Balance as at 31st ${mo} ${yr}</th></tr></thead>
+  <tbody>
+    <tr><td>Departmental Seed Account</td><td>&#8358;${state.seedBalance || '_____________'}</td></tr>
+    <tr><td>Budget &amp; Expense Account</td><td>&#8358;${state.budgetBalance || '_____________'}</td></tr>
+    <tr class="total-row"><td>Budgeted Total for ${mo} ${yr}</td><td>&#8358;${grandTotal.toLocaleString()}</td></tr>
+  </tbody>
+</table>
+
+<p class="section-note">Note: Budget figures above are based on diesel at &#8358;${D.toLocaleString()}/litre and petrol at &#8358;${P.toLocaleString()}/litre.</p>
+
+<br><br>
+<p>Prepared by: ___________________________ &nbsp;&nbsp;&nbsp; Date: ___________________________</p>
+
+</body>
+</html>`;
+      const blob = new Blob([html], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `NRCC Circuit Report - ${mo} ${yr}.doc`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ══════════════════════════════════════════
+    // EVENT HANDLERS
+    // ══════════════════════════════════════════
+    function overrideReh(wi, val) {
+      state.weeks[wi].rehDayOverride = val === '' ? null : parseInt(val);
+      const wk = state.weeks[wi];
+      const day = wk.rehDayOverride ?? state.defaultRehDay;
+      wk.rehDate = getRehDate(wk.sunday, day);
+      renderCurrent();
+    }
+    function addSpecial(wi) {
+      state.weeks[wi].specials.push({ name: '', date: '', hours: 3, fuelType: 'petrol', litresPerHour: 2.5 });
+      saveState();
+      renderCurrent();
+    }
+    function setPerf(member, dk, field, val) {
+      if (!state.servicePerformance[member]) state.servicePerformance[member] = {};
+      if (!state.servicePerformance[member][dk]) state.servicePerformance[member][dk] = {};
+      state.servicePerformance[member][dk][field] = val;
+      saveState();
+      document.getElementById('stepsBar').innerHTML = renderStepsBar();
+    }
+    function setSpiritActivity(member, activity, weekIdx, val) {
+      if (!state.spiritualActivities[member]) state.spiritualActivities[member] = { friday: Array(5).fill(''), saturday: Array(5).fill('') };
+      state.spiritualActivities[member][activity][weekIdx] = val;
+      saveState();
+      document.getElementById('stepsBar').innerHTML = renderStepsBar();
+    }
+    function rmSpecial(wi, ei) {
+      state.weeks[wi].specials.splice(ei, 1);
+      renderCurrent();
+    }
+    function addItem(key) {
+      state[key].push('');
+      renderCurrent();
+    }
+    function rmItem(key, i) {
+      state[key].splice(i, 1);
+      renderCurrent();
+    }
+    function goStep(n) {
+      state.step = n;
+      saveState();
+      renderCurrent();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    function goStep2() {
+      computeWeeks();
+      state.step = 2;
+      saveState();
+      renderCurrent();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ══════════════════════════════════════════
+    // SERVICE LOG DRAWER
+    // ══════════════════════════════════════════
+    function openDrawer() {
+      document.getElementById('serviceDrawer').classList.add('open');
+      document.getElementById('drawerOverlay').classList.add('open');
+      renderDrawer();
+    }
+    function closeDrawer() {
+      document.getElementById('serviceDrawer').classList.remove('open');
+      document.getElementById('drawerOverlay').classList.remove('open');
+    }
+    function renderDrawer() {
+      const svcDates = getServiceDatesForRoster();
+      const members = getActiveMembers();
+      const mo = MONTHS[state.month], yr = state.year;
+      if (svcDates.length === 0) {
+        document.getElementById('drawerBody').innerHTML = `
+          <div style="padding:20px;text-align:center;color:var(--text-light)">
+            <div style="font-size:32px;margin-bottom:12px">&#128203;</div>
+            <p style="font-size:13px">Complete Steps 1 &amp; 2 first to generate service dates,<br>then you can log events here.</p>
+          </div>`;
+        return;
+      }
+      const logsHtml = svcDates.map(svc => {
+        const dk = dateKey(svc.date);
+        const att = state.memberAttendance[dk] || { locked: false, entries: {} };
+        const isLocked = att.locked;
+        const memberEntries = members.map(m => {
+          const entry = att.entries[m] || { present: false, arrivalTime: '' };
+          return `
+            <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #eee;gap:8px">
+              <div style="flex:1;font-size:13px;font-weight:500">${m}</div>
+              <input type="text" placeholder="Time..." value="${entry.arrivalTime}" 
+                style="width:70px;padding:4px 6px;font-size:12px;border:1px solid #ddd;border-radius:4px" 
+                ${isLocked ? 'disabled' : `onblur="saveAttendance('${dk}','${m.replace(/'/g, "\\'")}','arrivalTime',this.value)"`}>
+              <button onclick="togglePresent('${dk}','${m.replace(/'/g, "\\'")}')" 
+                ${isLocked ? 'disabled' : ''}
+                style="background:${entry.present ? 'var(--success)' : '#eee'};color:${entry.present ? '#fff' : '#666'};border:none;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
+                ${entry.present ? 'Present' : 'Absent'}
+              </button>
+            </div>`;
+        }).join('');
+
+        return `<div class="log-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="log-card-title" style="margin:0">${svc.label}</div>
+            ${isLocked ? '<span style="font-size:10px;color:var(--danger);font-weight:700;text-transform:uppercase">🔒 Locked</span>' : ''}
+          </div>
+          ${memberEntries}
+        </div>`;
+      }).join('');
+
+      document.getElementById('drawerBody').innerHTML = `
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:14px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">
+          Member Attendance — ${mo} ${yr}
+        </div>
+        ${logsHtml}`;
+    }
+    function saveAttendance(dk, name, field, val) {
+      if (!state.memberAttendance[dk]) state.memberAttendance[dk] = { locked: false, entries: {} };
+      if (!state.memberAttendance[dk].entries[name]) state.memberAttendance[dk].entries[name] = { present: false, arrivalTime: '' };
+      state.memberAttendance[dk].entries[name][field] = val;
+
+      // Auto-sync to performance state
+      if (field === 'arrivalTime') {
+        const isMidweek = dk.includes(',');
+        if (!state.servicePerformance[name]) state.servicePerformance[name] = {};
+        if (!state.servicePerformance[name][dk]) state.servicePerformance[name][dk] = {};
+        if (val && !state.memberAttendance[dk].entries[name].present) {
+          state.memberAttendance[dk].entries[name].present = true;
+          state.servicePerformance[name][dk].attended = 'Y';
+        }
+        const limit = dk.includes('Sun') ? "08:30" : "17:30";
+        if (val && val <= limit) state.servicePerformance[name][dk].onTime = 'Y';
+        else if (val) state.servicePerformance[name][dk].onTime = 'N';
+      }
+      saveState();
+      renderDrawer();
+    }
+    function togglePresent(dk, name) {
+      if (!state.memberAttendance[dk]) state.memberAttendance[dk] = { locked: false, entries: {} };
+      if (state.memberAttendance[dk].locked) return;
+      if (!state.memberAttendance[dk].entries[name]) state.memberAttendance[dk].entries[name] = { present: false, arrivalTime: '' };
+      const entry = state.memberAttendance[dk].entries[name];
+      entry.present = !entry.present;
+
+      if (!state.servicePerformance[name]) state.servicePerformance[name] = {};
+      if (!state.servicePerformance[name][dk]) state.servicePerformance[name][dk] = {};
+      state.servicePerformance[name][dk].attended = entry.present ? 'Y' : 'N';
+      if (!entry.present) { entry.arrivalTime = ''; state.servicePerformance[name][dk].onTime = 'N'; }
+
+      saveState();
+      renderDrawer();
+    }
+    function toggleLock(dk) {
+      if (!state.memberAttendance[dk]) state.memberAttendance[dk] = { locked: false, entries: {} };
+      state.memberAttendance[dk].locked = !state.memberAttendance[dk].locked;
+      saveState();
+      showAdminSummary();
+    }
+    function saveLog(dk, field, val) {
+      if (!state.serviceLog[dk]) state.serviceLog[dk] = { attendance: '', equipment: '', notes: '' };
+      state.serviceLog[dk][field] = val;
+      saveState();
+    }
+
+    // ══════════════════════════════════════════
+    // BIO DATA FUNCTIONS
+    // ══════════════════════════════════════════
+    function openBioModal() {
+      const modal = document.getElementById('bioModal');
+      modal.style.display = 'flex';
+      renderBioTable();
+    }
+    function closeBioModal() {
+      document.getElementById('bioModal').style.display = 'none';
+    }
+    function renderBioTable() {
+      const members = getActiveMembers();
+      const tbody = document.getElementById('bioTableBody');
+      tbody.innerHTML = members.map((m, i) => {
+        let bio = state.bioData.find(b => b.name === m);
+        if (!bio) { bio = { name: m, address: '', phone: '', email: '', cell: '', dob: '' }; state.bioData.push(bio); }
+        return `<tr>
+          <td style="font-weight:600">${m}</td>
+          <td><input placeholder="Address..." value="${bio.address || ''}" oninput="setBio('${m}','address',this.value)"></td>
+          <td><input placeholder="Phone..." value="${bio.phone || ''}" oninput="setBio('${m}','phone',this.value)"></td>
+          <td><input placeholder="Email..." value="${bio.email || ''}" oninput="setBio('${m}','email',this.value)"></td>
+          <td><input placeholder="Cell..." value="${bio.cell || ''}" oninput="setBio('${m}','cell',this.value)"></td>
+          <td><input placeholder="DOB..." value="${bio.dob || ''}" oninput="setBio('${m}','dob',this.value)"></td>
+        </tr>`;
+      }).join('');
+    }
+    function setBio(name, field, val) {
+      let bio = state.bioData.find(b => b.name === name);
+      if (!bio) { bio = { name, address: '', phone: '', email: '', cell: '', dob: '' }; state.bioData.push(bio); }
+      bio[field] = val;
+      saveState();
+    }
+    function downloadBioData() {
+      const members = getActiveMembers();
+      const rows = members.map(m => {
+        const b = state.bioData.find(x => x.name === m) || {};
+        return { 'Name': m, 'Address': b.address || '', 'Contact No.': b.phone || '', 'Email': b.email || '', 'Cell Group': b.cell || '', 'Date of Birth': b.dob || '' };
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.sheet_add_aoa(ws, [['NRCC CIRCUIT DEPARTMENT - PERSONNEL BIO DATA']], { origin: 'A1' });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Bio Data');
+      XLSX.writeFile(wb, `NRCC_Circuit_BioData_${state.year}.xlsx`);
+    }
+    function openAdminView() {
+      document.getElementById('pinModal').style.display = 'flex';
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinError').textContent = '';
+      setTimeout(() => document.getElementById('pinInput').focus(), 100);
+    }
+    function closePinModal() {
+      document.getElementById('pinModal').style.display = 'none';
+    }
+    function checkPin() {
+      const entered = document.getElementById('pinInput').value;
+      if (!entered) return;
+      if (entered === state.adminPin) {
+        closePinModal();
+        showAdminSummary();
+      } else if (entered.length >= state.adminPin.length) {
+        document.getElementById('pinError').textContent = 'Incorrect password. Try again.';
+        document.getElementById('pinInput').value = '';
+      }
+    }
+    function showAdminSummary() {
+      const mo = MONTHS[state.month], yr = state.year;
+      const svcDates = getServiceDatesForRoster();
+      const members = getActiveMembers();
+      const D = state.dieselPrice, P = state.petrolPrice, rehCPH = ceil10(2.5 * P);
+      let grandTotal = 0;
+      state.weeks.forEach(wk => {
+        grandTotal += 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3;
+        wk.specials.forEach(ev => {
+          const lph = ev.litresPerHour || 2.5, ft = ev.fuelType || 'petrol';
+          grandTotal += ceil10(lph * (ft === 'diesel' ? D : P)) * (ev.hours || 3);
+        });
+      });
+      const totalAtt = svcDates.reduce((s, svc) => s + (parseInt(state.serviceLog[dateKey(svc.date)]?.attendance) || 0), 0);
+      const avgAtt = svcDates.length ? Math.round(totalAtt / svcDates.length) : 0;
+      const issueCount = svcDates.filter(svc => (state.serviceLog[dateKey(svc.date)]?.equipment || '').trim()).length;
+      const perfRows = members.map(m => {
+        const sc = calcMemberScore(m, svcDates);
+        const col = sc >= 80 ? 'sc-a' : sc >= 60 ? 'sc-b' : 'sc-c';
+        return `<tr><td style="padding:6px 10px;border-bottom:1px solid var(--cream-dark)">${m}</td><td style="padding:6px 10px;border-bottom:1px solid var(--cream-dark);text-align:center"><span class="${col}" style="font-weight:700">${sc}%</span></td></tr>`;
+      }).join('');
+      const logRows = svcDates.map(svc => {
+        const dk = dateKey(svc.date);
+        const log = state.serviceLog[dk] || {};
+        const att = state.memberAttendance[dk] || { locked: false, entries: {} };
+        const isLocked = att.locked;
+        const presentCount = Object.values(att.entries).filter(e => e.present).length;
+
+        return `<div style="padding:10px;border-bottom:1px solid var(--cream-dark);display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700;font-size:12px;color:var(--navy);margin-bottom:2px">${svc.label}</div>
+            <div style="font-size:11px;color:var(--text-light)">Department Attendance: <strong>${presentCount}/${members.length}</strong></div>
+            ${log.equipment ? `<div style="font-size:11px;color:#dc2626">⚠️ Equipment Issue Reported</div>` : ''}
+          </div>
+          <button onclick="toggleLock('${dk}')" 
+            style="background:${isLocked ? '#fee2e2' : 'var(--cream)'};color:${isLocked ? '#dc2626' : 'var(--navy)'};border:1px solid ${isLocked ? '#fecaca' : 'var(--border)'};padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
+            ${isLocked ? '🔓 Unlock' : '🔒 Lock Day'}
+          </button>
+        </div>`;
+      }).join('');
+      document.getElementById('drawerBody').innerHTML = `
+        <div style="background:var(--navy);color:#fff;border-radius:12px;padding:16px;margin-bottom:14px">
+          <div style="font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Admin Summary &mdash; ${mo} ${yr}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div style="text-align:center"><div style="font-size:20px;font-weight:700">&#8358;${grandTotal.toLocaleString()}</div><div style="font-size:10px;opacity:.7">Budget Total</div></div>
+            <div style="text-align:center"><div style="font-size:20px;font-weight:700">${issueCount}</div><div style="font-size:10px;opacity:.7">Equipment Issues</div></div>
+          </div>
+        </div>
+        ${members.length > 0 ? `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-light);margin-bottom:8px">Steward Performance (Avg)</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px"><tbody>${perfRows}</tbody></table>` : ''}
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-light);margin-bottom:8px">Service Controls</div>
+        <div style="background:var(--cream);border-radius:10px;overflow:hidden;margin-bottom:14px">${logRows || '<div style="padding:12px;font-size:12px;color:var(--text-light);text-align:center">No service dates yet</div>'}</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="renderDrawer()" style="flex:1;background:var(--navy);color:#fff;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">&#8592; Back to Log</button>
+          <button onclick="changePin()" style="flex:1;background:var(--cream);color:var(--text);border:1.5px solid var(--border);padding:10px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">&#128273; Change PIN</button>
+        </div>`;
+    }
+    function changePin() {
+      const np = prompt('Enter new 4-digit PIN:');
+      if (!np) return;
+      if (!/^\d{4}$/.test(np)) { alert('PIN must be exactly 4 digits'); return; }
+      state.adminPin = np;
+      saveState();
+      showToast('PIN updated \u2713');
+    }
+
+    // ══════════════════════════════════════════
+    // MAIN RENDER
+    // ══════════════════════════════════════════
+    function renderCurrent() {
+      document.getElementById('stepsBar').innerHTML = renderStepsBar();
+      let html = '';
+      if (state.step === 1) html = renderStep1();
+      else if (state.step === 2) html = renderStep2();
+      else if (state.step === 3) html = renderStep3();
+      else if (state.step === 4) html = renderStep4();
+      else if (state.step === 5) html = renderStep5();
+      else if (state.step === 6) html = renderStep6();
+      else if (state.step === 7) html = renderStep7();
+      document.getElementById('content').innerHTML = html;
+    }
+
+    renderCurrent();
+  </script>
+</body>
+
+</html>
