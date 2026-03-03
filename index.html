@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NRCC Circuit · Department Hub</title>
+    <title>NRCC Circuit</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -447,6 +447,7 @@
             font-weight: 800;
             background: linear-gradient(135deg, var(--gold), var(--gold-light));
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -498,7 +499,6 @@
         input[type="text"],
         input[type="number"],
         input[type="time"],
-        select,
         textarea {
             padding: 10px 14px;
             border: 1px solid var(--border);
@@ -506,9 +506,27 @@
             font-family: 'Inter', sans-serif;
             font-size: 13px;
             color: var(--text);
-            background: var(--bg-glass);
+            background: rgba(255, 255, 255, 0.07);
             width: 100%;
             transition: var(--transition);
+        }
+
+        select {
+            padding: 10px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: var(--radius-sm);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            color: #e8eaf0;
+            background: #1a2540;
+            width: 100%;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        select option {
+            background: #1a2540;
+            color: #e8eaf0;
         }
 
         input:focus,
@@ -598,6 +616,143 @@
             background: transparent;
             color: var(--text);
             border: 1px solid var(--border);
+        }
+
+        /* Global Desktop styles continue... */
+
+        /* ── SCORE CARDS ── */
+        .score-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px;
+        }
+
+        .score-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            text-align: center;
+        }
+
+        .sc-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .sc-score {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 2px;
+        }
+
+        .sc-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .sc-a {
+            color: var(--accent-green);
+        }
+
+        .sc-b {
+            color: var(--gold);
+        }
+
+        .sc-c {
+            color: var(--accent-red);
+        }
+
+        /* ── COMMENTS & FEED ── */
+        .minister-comment-thread {
+            max-height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-right: 8px;
+        }
+
+        .comment-bubble {
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            max-width: 85%;
+            font-size: 13px;
+            line-height: 1.4;
+            position: relative;
+        }
+
+        .comment-bubble.minister {
+            align-self: flex-end;
+            background: var(--gold);
+            color: #0a0f1e;
+            border-bottom-right-radius: 2px;
+        }
+
+        .comment-bubble.admin {
+            align-self: flex-start;
+            background: var(--bg-glass-hover);
+            color: var(--text);
+            border-bottom-left-radius: 2px;
+            border: 1px solid var(--border);
+        }
+
+        .comment-meta {
+            font-size: 9px;
+            margin-top: 6px;
+            opacity: 0.7;
+        }
+
+        .activity-feed {
+            max-height: 250px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-right: 8px;
+        }
+
+        .feed-item {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text-dim);
+            align-items: flex-start;
+        }
+
+        .feed-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+
+        .feed-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease forwards;
         }
 
         .btn-outline:hover {
@@ -1566,18 +1721,86 @@
             }
         }
 
-        @media (max-width:480px) {
-            .kpi-grid {
-                grid-template-columns: 1fr 1fr;
+        @media (max-width: 768px) {
+            .app-layout {
+                flex-direction: column;
             }
 
-            .pub-stats {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                top: 0;
+                display: flex;
+                flex-direction: row;
+                overflow-x: auto;
+                padding: 10px;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                height: auto !important;
+                position: sticky;
+                z-index: 10;
+                background: var(--bg-deep);
+            }
+
+            .sidebar-item {
+                flex-shrink: 0;
+                margin-bottom: 0;
+                padding: 8px 12px;
+                font-size: 11px;
+                flex-direction: column;
+                gap: 4px;
+                text-align: center;
+                min-width: 70px;
+            }
+
+            .sidebar-item .si-icon {
+                font-size: 18px;
+            }
+
+            .sidebar-label {
+                display: none;
+            }
+
+            .main-content {
+                padding: 16px;
+                max-width: 100%;
+            }
+
+            .kpi-grid,
+            .pub-stats,
+            .pub-services,
+            .form-row,
+            .form-row-3 {
                 grid-template-columns: 1fr;
             }
 
-            .gen-btns {
-                flex-direction: column;
-                align-items: center;
+            .db-grid-mobile {
+                grid-template-columns: 1fr !important;
+            }
+
+            .pub-hero {
+                padding: 32px 16px;
+            }
+
+            .pub-hero h2 {
+                font-size: 22px;
+            }
+
+            .spc-table {
+                font-size: 11px;
+            }
+
+            .glass {
+                padding: 16px;
+            }
+
+            .g-header {
+                padding: 10px 16px;
+            }
+
+            .g-title {
+                font-size: 16px;
             }
         }
 
@@ -1877,17 +2100,66 @@
         // ══════════════════════════════════════════
         // STATE
         // ══════════════════════════════════════════
-        const ROLE_DEFS = [
-            { code: 'GEN', name: 'Generator Operator' }, { code: 'MIC', name: 'Microphone Tech' }, { code: 'HVAC', name: 'HVAC Operator' },
-            { code: 'SND', name: 'Sound Engineer' }, { code: 'REC', name: 'Sound Engineer (Recording)' }, { code: 'EXT', name: 'External Sound' }, { code: 'COORD', name: 'Service Coordinator' }
+        const DEFAULT_ROLES = [
+            { code: 'PWR', name: 'Power (PWR)' },
+            { code: 'MIC', name: 'Microphones (MIC)' },
+            { code: 'HVAC', name: 'AC Units (HVAC)' },
+            { code: 'SND', name: 'Sound (SND)' },
+            { code: 'REC', name: 'Recording (REC)' },
+            { code: 'EXT', name: 'External Sound (EXT)' },
+            { code: 'COORD', name: 'Service Coordinator (COORD)' }
         ];
+
+        const DEFAULT_CHECKLISTS = {
+            pre: [
+                { id: 'p1', cat: 'PWR', time: 'T-60Mins', task: 'Check Fuel, Oil, Coolant levels' },
+                { id: 'p2', cat: 'PWR', time: 'T-60Mins', task: 'Connect battery & Warm up (<5 mins)' },
+                { id: 'p3', cat: 'PWR', time: 'T-60Mins', task: 'Observe sound/leaks/performance' },
+                { id: 'p4', cat: 'MIC', time: 'T-40Mins', task: 'Insert fresh batteries into all Mics' },
+                { id: 'p5', cat: 'MIC', time: 'T-40Mins', task: 'Verify battery levels on all units' },
+                { id: 'p6', cat: 'MIC', time: 'T-40Mins', task: 'Leave Mics on glass booth desk' },
+                { id: 'p7', cat: 'PWR', time: 'T-30Mins', task: 'Switch On & Wait 60s before load' },
+                { id: 'p8', cat: 'PWR', time: 'T-30Mins', task: 'Power on pumping machine' },
+                { id: 'p9', cat: 'HVAC', time: 'T-30Mins', task: 'Switch on Water Heaters & Altar AC Knife switch' },
+                { id: 'p10', cat: 'HVAC', time: 'T-30Mins', task: 'Set all Units to 16°C, Turbo, Oscillate' },
+                { id: 'p11', cat: 'HVAC', time: 'T-30Mins', task: 'Verify cool air blowing from all units' },
+                { id: 'p12', cat: 'SND', time: 'T-30Mins', task: 'Power on Amp, IEM, Mic Rack & Mixer' },
+                { id: 'p13', cat: 'SND', time: 'T-30Mins', task: 'Unmute inputs/outputs & Sound check' },
+                { id: 'p14', cat: 'CLN', time: 'T-30Mins', task: 'Wipe dust off ACs, Speakers, Racks' },
+                { id: 'p15', cat: 'REC', time: 'T-30Mins', task: 'Restart REC PC & Setup Adobe Audition' },
+                { id: 'p16', cat: 'REC', time: 'T-30Mins', task: 'Verify XUSB signal & Test recording' },
+                { id: 'p17', cat: 'REC', time: 'T-10Mins', task: 'Start Official Recording' },
+                { id: 'p18', cat: 'EXT', time: 'T-20Mins', task: 'Setup Lobby/Outside Speaker' },
+                { id: 'p19', cat: 'NUR', time: 'T-20Mins', task: 'Verify Speaker & Fans in Nursing Mothers section' }
+            ],
+            in: [
+                { id: 'i1', cat: 'SND', task: 'Intelligent mixing based on room condition' },
+                { id: 'i2', cat: 'SND', task: 'Intermittent walk-around for coverage check' },
+                { id: 'i3', cat: 'REC', task: 'Monitor levels (-12 to -5 dB)' },
+                { id: 'i4', cat: 'REC', task: 'Add markers for titles/ministers' },
+                { id: 'i5', cat: 'OBS', task: 'Check-in with Gen/Mothers/Outside at transitions' },
+                { id: 'i6', cat: 'LGT', task: 'Switch on Security Lights (6:00pm)' }
+            ],
+            post: [
+                { id: 'o1', cat: 'HVAC', task: 'Power off ACs with Remote' },
+                { id: 'o2', cat: 'HVAC', task: 'Switch off Water Heater & Knife switches' },
+                { id: 'o3', cat: 'SND', task: 'Mute inputs & Gather all Mics' },
+                { id: 'o4', cat: 'SND', task: 'Remove batteries & Power off Racks/Mixer/UPS' },
+                { id: 'o5', cat: 'REC', task: 'Mixdown & Export (128kbps/48kbps)' },
+                { id: 'o6', cat: 'REC', task: 'Backup to Cloud Archive/Flash' },
+                { id: 'o7', cat: 'EXT', task: 'Return outside speaker to lobby' },
+                { id: 'o8', cat: 'PWR', task: 'Switch to Petrol Gen & Shut down Diesel Gen' },
+                { id: 'o9', cat: 'PWR', task: 'Report diesel level & Lock generator' }
+            ]
+        };
+
         const DEFAULT_STATE = {
             step: 1, month: new Date().getMonth(), year: new Date().getFullYear(),
             dieselPrice: 1000, petrolPrice: 845, defaultRehDay: 5, weeks: [],
             teamMembers: ['Tamilore Adeogun', 'Ayodeji Ojo', 'Promise Okpala', 'David Falodi', 'Segun Olayioye', 'Esther Victor', 'Olawale Esho', 'Oluwatosin Ayilola', 'Abiodun Ojo'],
             goals: ['Listen to Messages of the week', 'Re-listen to Sunday and Midweek messages', 'Listen to service recordings and evaluate sound quality', 'Sowing seed towards departmental purse'],
             seedBalance: '', budgetBalance: '', specialActivities: '',
-            roles: ROLE_DEFS.map(r => ({ ...r, primary: '', alt1: '', alt2: '' })),
+            roles: DEFAULT_ROLES.map(r => ({ ...r, primary: '', alt1: '', alt2: '' })),
             serviceAssignments: {}, servicePerformance: {}, spiritualActivities: {},
             adminPin: 'Circuit25', ministerPin: 'Minister25',
             memberAttendance: {}, bioData: [], whatsappGroup: '',
@@ -1902,14 +2174,18 @@
                 measurementId: "G-31QR7THST7"
             }, isAdminMode: false, currentView: 'public',
             activityLog: [], ministerComments: [], serviceLog: {},
-            meetingMinutes: [], expenses: []
+            meetingMinutes: [], expenses: [], certifiedLog: {},
+            adminPin: 'Circuit25', ministerPin: 'Minister25',
+            roles: [...DEFAULT_ROLES],
+            checklists: JSON.parse(JSON.stringify(DEFAULT_CHECKLISTS)),
+            checklistLogs: {}
         };
         function loadState() {
             try {
                 const s = localStorage.getItem('nrcc_circuit_state');
                 if (s) {
                     const p = JSON.parse(s);
-                    if (!p.roles) p.roles = ROLE_DEFS.map(r => ({ ...r, primary: '', alt1: '', alt2: '' }));
+                    if (!p.roles) p.roles = DEFAULT_ROLES.map(r => ({ ...r, primary: '', alt1: '', alt2: '' }));
                     if (!p.serviceAssignments) p.serviceAssignments = {};
                     if (!p.servicePerformance) p.servicePerformance = {};
                     if (!p.spiritualActivities) p.spiritualActivities = {};
@@ -1925,6 +2201,10 @@
                     if (!p.currentView) p.currentView = 'public';
                     if (!p.meetingMinutes) p.meetingMinutes = [];
                     if (!p.expenses) p.expenses = [];
+                    if (!p.certifiedLog) p.certifiedLog = {};
+                    if (!p.roles) p.roles = [...DEFAULT_ROLES];
+                    if (!p.checklists) p.checklists = JSON.parse(JSON.stringify(DEFAULT_CHECKLISTS));
+                    if (!p.checklistLogs) p.checklistLogs = {};
                     if (!p.jsonbinKey) p.jsonbinKey = '';
                     if (!p.jsonbinId) p.jsonbinId = '';
                     p.isAdminMode = false; p.currentView = 'public';
@@ -1964,20 +2244,28 @@
             if (n === 4) return state.roles && state.roles.some(r => r.primary);
             if (n === 5) return Object.keys(state.servicePerformance).length > 0;
             if (n === 6) return Object.keys(state.spiritualActivities).length > 0;
-            if (n === 7) return state.meetingMinutes && state.meetingMinutes.length > 0;
-            if (n === 8) return state.expenses && state.expenses.length > 0;
+            if (n === 1) return state.month !== undefined && state.year; // Calendar
+            if (n === 2) return state.roles && state.roles.some(r => r.primary); // Roster
+            if (n === 3) return state.weeks && state.weeks.length > 0; // Attendance (Weekly Events)
+            if (n === 4) return Object.keys(state.spiritualActivities).length > 0; // Spiritual
+            if (n === 5) return Object.keys(state.servicePerformance).length > 0; // Spirit (Performance)
+            if (n === 6) return state.teamMembers.some(m => m.trim()) || state.seedBalance || state.budgetBalance; // Performance (Team & Report)
+            if (n === 7) return state.meetingMinutes && state.meetingMinutes.length > 0; // Meeting
+            if (n === 8) return state.expenses && state.expenses.length > 0; // Expenses
+            if (n === 9) return state.checklists && Object.keys(state.checklists).length > 0; // Operations (Checklists)
             return false;
         }
         const STEP_DEFS = [
-            { n: 1, icon: '📅', label: 'Month Setup' },
-            { n: 2, icon: '📋', label: 'Weekly Events' },
-            { n: 3, icon: '👥', label: 'Team & Report' },
-            { n: 4, icon: '📋', label: 'Roster' },
-            { n: 5, icon: '📊', label: 'Performance' },
-            { n: 6, icon: '🙏', label: 'Spiritual' },
-            { n: 7, icon: '🤝', label: 'Meetings' },
-            { n: 8, icon: '💳', label: 'Expenses' },
-            { n: 9, icon: '📄', label: 'Generate' }
+            { n: 1, icon: '📅', label: 'Calendar' },
+            { n: 2, icon: '📋', label: 'Roster' },
+            { n: 3, icon: '👥', label: 'Attendance' },
+            { n: 4, icon: '✨', label: 'Spiritual' },
+            { n: 5, icon: '🔥', label: 'Spirit' },
+            { n: 6, icon: '📈', label: 'Performance' },
+            { n: 7, icon: '📝', label: 'Meeting' },
+            { n: 8, icon: '💸', label: 'Expenses' },
+            { n: 9, icon: '⚙️', label: 'Operations' },
+            { n: 10, icon: '📑', label: 'Generate' }
         ];
 
         // ══════════════════════════════════════════
@@ -2219,29 +2507,46 @@
             setSpiritActivity(m, act, wi, next);
         }
 
+        function addItem(key) { if (!state[key]) state[key] = []; state[key].push({}); saveState(); renderCurrent(); }
+        function rmItem(key, idx) { if (confirm('Remove this item?')) { state[key].splice(idx, 1); saveState(); renderCurrent(); } }
+
         // ══════════════════════════════════════════
         // STEP 7 — MEETINGS
         // ══════════════════════════════════════════
         function renderStep7() {
             const mtgs = state.meetingMinutes || [];
-            const rows = mtgs.map((m, i) => `
-                <div class="glass" style="margin-bottom:12px;padding:16px;border-left:4px solid var(--gold)">
+            const members = getActiveMembers();
+            const rows = mtgs.map((m, i) => {
+                const cert = state.certifiedLog?.['mtg_' + i];
+                return `
+                <div class="glass" style="margin-bottom:12px;padding:16px;border-left:4px solid var(--gold);${cert ? 'opacity:0.8' : ''}">
                     <div style="display:flex;justify-content:space-between;margin-bottom:10px">
-                        <input type="text" value="${m.title || ''}" placeholder="Meeting Title" onchange="state.meetingMinutes[${i}].title=this.value;saveState()" style="font-weight:700;background:transparent;border:none;padding:0;font-size:15px;width:70%;color:var(--gold)">
-                        <input type="date" value="${m.date || ''}" onchange="state.meetingMinutes[${i}].date=this.value;saveState()" style="width:120px;font-size:11px">
+                        <input type="text" value="${m.title || ''}" ${cert ? 'disabled' : ''} placeholder="Meeting Title" onchange="state.meetingMinutes[${i}].title=this.value;saveState()" style="font-weight:700;background:transparent;border:none;padding:0;font-size:15px;width:70%;color:var(--gold)">
+                        <input type="date" value="${m.date || ''}" ${cert ? 'disabled' : ''} onchange="state.meetingMinutes[${i}].date=this.value;saveState()" style="width:120px;font-size:11px">
                     </div>
                     <div class="form-group"><label class="field-label">Agenda (one per line)</label>
-                        <textarea onchange="state.meetingMinutes[${i}].agenda=this.value;saveState()" style="min-height:60px">${m.agenda || ''}</textarea></div>
+                        <textarea onchange="state.meetingMinutes[${i}].agenda=this.value;saveState()" ${cert ? 'disabled' : ''} style="min-height:60px">${m.agenda || ''}</textarea></div>
                     <div class="form-group" style="margin-top:10px"><label class="field-label">Minutes / Resolutions</label>
-                        <textarea onchange="state.meetingMinutes[${i}].minutes=this.value;saveState()" style="min-height:80px">${m.minutes || ''}</textarea></div>
-                    <button class="btn btn-outline" style="margin-top:10px;font-size:10px;padding:4px 8px;border-color:rgba(212,168,67,0.3)" onclick="rmItem('meetingMinutes',${i})">Remove Meeting</button>
+                        <textarea onchange="state.meetingMinutes[${i}].minutes=this.value;saveState()" ${cert ? 'disabled' : ''} style="min-height:80px">${m.minutes || ''}</textarea></div>
+                    
+                    <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+                        ${cert
+                        ? `<div style="font-size:10px;color:var(--accent-green);font-weight:700">✅ Minute Taker: ${cert.name}</div>`
+                        : `<div style="display:flex;gap:8px;align-items:center"><label style="font-size:10px;color:var(--text-muted)">Minute Taker:</label>
+                               <select id="mtgCert-${i}" style="font-size:11px;padding:4px;width:120px">${members.map(nm => `<option value="${nm}">${nm}</option>`).join('')}</select>
+                               <button class="btn btn-primary" style="padding:4px 8px;font-size:10px" onclick="certifyMeeting(${i}, document.getElementById('mtgCert-${i}').value)">Certify Minutes</button></div>`
+                    }
+                        <button class="btn btn-outline" style="font-size:10px;padding:4px 8px;border-color:rgba(212,168,67,0.3)" ${cert ? 'disabled' : ''} onclick="rmItem('meetingMinutes',${i})">Remove Meeting</button>
+                    </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
             return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">🤝</div><div><h2>Departmental Meetings</h2><div class="subtitle">Agenda and minutes for this month</div></div></div>
                 ${rows}
                 <div style="text-align:center;padding:10px"><button class="btn btn-primary" onclick="addItem('meetingMinutes')">+ Add Meeting</button></div>
             </div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(6)">← Back</button><button class="btn btn-primary" onclick="goStep(8)">Next: Expenses →</button></div>`;
         }
+
 
         // ══════════════════════════════════════════
         // STEP 8 — EXPENSES
@@ -2256,18 +2561,28 @@
             saveState();
         }
         function renderStep8() {
-            const rows = state.expenses.map((ex, i) => `
-                <div class="ex-row">
-                    <input type="date" value="${ex.date}" onchange="state.expenses[${i}].date=this.value;saveState()">
-                    <input type="text" value="${ex.desc}" placeholder="Description" onchange="state.expenses[${i}].desc=this.value;saveState()">
-                    <select onchange="state.expenses[${i}].type=this.value;saveState();renderCurrent()" class="${ex.type === 'expense' ? 'ex-type-exp' : 'ex-type-ref'}" style="border:none;background:transparent">
+            const members = getActiveMembers();
+            const rows = state.expenses.map((ex, i) => {
+                const cert = state.certifiedLog?.['ex_' + ex.id];
+                return `
+                <div class="ex-row" style="${cert ? 'opacity:0.8' : ''}">
+                    <input type="date" value="${ex.date}" ${cert ? 'disabled' : ''} onchange="state.expenses[${i}].date=this.value;saveState()">
+                    <input type="text" value="${ex.desc}" ${cert ? 'disabled' : ''} placeholder="Description" onchange="state.expenses[${i}].desc=this.value;saveState()">
+                    <select ${cert ? 'disabled' : ''} onchange="state.expenses[${i}].type=this.value;saveState();renderCurrent()" class="${ex.type === 'expense' ? 'ex-type-exp' : 'ex-type-ref'}" style="border:none;background:transparent">
                         <option value="expense" ${ex.type === 'expense' ? 'selected' : ''}>Expense 🚩</option>
                         <option value="refund" ${ex.type === 'refund' ? 'selected' : ''}>Refund 📥</option>
                     </select>
-                    <input type="number" value="${ex.amount}" placeholder="Amount" onchange="state.expenses[${i}].amount=parseFloat(this.value)||0;saveState();renderCurrent()">
-                    <button onclick="removeExpense(${ex.id})" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px">🗑️</button>
+                    <input type="number" value="${ex.amount}" ${cert ? 'disabled' : ''} placeholder="Amount" onchange="state.expenses[${i}].amount=parseFloat(this.value)||0;saveState();renderCurrent()">
+                    ${cert
+                        ? `<div style="font-size:9px;color:var(--accent-green);font-weight:700;padding:4px">✓ ${cert.name.split(' ')[0]}</div>`
+                        : `<div style="display:flex;gap:4px;align-items:center">
+                            <select id="exCert-${ex.id}" style="font-size:9px;padding:2px;width:80px">${members.map(nm => `<option value="${nm}">${nm}</option>`).join('')}</select>
+                            <button class="btn-ghost-add" style="padding:4px;font-size:10px" onclick="if(confirm('Certify this entry?')) certifyExpense(${ex.id}, document.getElementById('exCert-${ex.id}').value)">Certify</button>
+                           </div>`
+                    }
+                    <button onclick="removeExpense(${ex.id})" ${cert ? 'disabled' : ''} style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;opacity:${cert ? 0.3 : 1}">🗑️</button>
                 </div>
-            `).join('');
+            `}).join('');
             const totalExp = state.expenses.reduce((s, e) => s + (e.type === 'expense' ? e.amount : -e.amount), 0);
             return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-gold">💳</div><div><h2>Departmental Expenses</h2><div class="subtitle">Track monthly spend and refund requests</div></div></div>
                 <div style="margin-bottom:16px">${state.expenses.length === 0 ? '<div class="alert alert-info" style="font-size:11px">No expenses recorded yet. click "Add Item" to start.</div>' : rows}</div>
@@ -2285,9 +2600,25 @@
         // STEP 9 — GENERATE
         // ══════════════════════════════════════════
         function renderStep9() {
-            // ══════════════════════════════════════════
-            // STEP 7 — GENERATE
-            // ══════════════════════════════════════════
+            const mo = MONTHS[state.month], yr = state.year;
+            const D = state.dieselPrice, P = state.petrolPrice, rehCPH = ceil10(2.5 * P);
+            let grandTotal = 0;
+            const tableRows = state.weeks.map((wk, wi) => {
+                const ds = wk.specials.filter(e => e.name && e.fuelType === 'diesel'), ps = wk.specials.filter(e => e.name && (e.fuelType || 'petrol') === 'petrol');
+                let weekSub = 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3;
+                ds.forEach(e => weekSub += ceil10((e.litresPerHour || 12) * D) * (e.hours || 3));
+                ps.forEach(e => weekSub += ceil10((e.litresPerHour || 2.5) * P) * (e.hours || 3));
+                grandTotal += weekSub;
+                return `<tr><td>${wi + 1}</td><td>${fmtDisplay(wk.wednesday)}</td><td>${fmtDisplay(wk.sunday)}</td><td>${fmtDisplay(wk.rehDate)}</td><td>${wk.specials.length} events</td></tr>`;
+            }).join('');
+
+            const weekBreakdown = state.weeks.map((wk, i) => `
+                <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+                    <span style="font-size:12px;color:var(--text-dim)">Week ${i + 1}</span>
+                    <span style="font-weight:600">₦${((12 * D * 2.5 + 12 * D * 4 + rehCPH * 3) + wk.specials.reduce((a, e) => a + (ceil10((e.litresPerHour || (e.fuelType === 'diesel' ? 12 : 2.5)) * (e.fuelType === 'diesel' ? D : P)) * (e.hours || 3)), 0)).toLocaleString()}</span>
+                </div>
+            `).join('');
+
             return `<div class="gen-hero fade-in"><div class="month-chip">${mo.toUpperCase()} ${yr}</div><h2>Department Report Ready</h2><div class="gen-sub">All data compiled · Ready for download</div>
         <div class="gen-btns"><button class="btn btn-gen-excel" onclick="generateExcel()">📊 Download Budget (Excel)</button><button class="btn btn-gen-word" onclick="generateWord()">📄 Download Report (Word)</button></div></div>
       <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-gold">💰</div><div><h2>Budget Summary</h2></div></div>${weekBreakdown}
@@ -2309,6 +2640,26 @@
         function goStep2() { computeWeeks(); state.step = 2; saveState(); renderCurrent(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
         function setPerf(member, dk, field, val) { if (!state.servicePerformance[member]) state.servicePerformance[member] = {}; if (!state.servicePerformance[member][dk]) state.servicePerformance[member][dk] = {}; state.servicePerformance[member][dk][field] = val; saveState(); }
         function setSpiritActivity(member, activity, weekIdx, val) { if (!state.spiritualActivities[member]) state.spiritualActivities[member] = { friday: Array(5).fill(''), saturday: Array(5).fill('') }; state.spiritualActivities[member][activity][weekIdx] = val; saveState(); }
+
+        function certifyService(dk, name) {
+            if (!name) return alert('Please select a steward name to certify.');
+            if (!state.certifiedLog) state.certifiedLog = {};
+            state.certifiedLog[dk] = { name, time: new Date().toISOString() };
+            if (state.memberAttendance[dk]) state.memberAttendance[dk].locked = true;
+            saveState(); renderDrawer(dk);
+        }
+        function certifyExpense(id, name) {
+            if (!name) return alert('Please select a name.');
+            if (!state.certifiedLog) state.certifiedLog = {};
+            state.certifiedLog['ex_' + id] = { name, time: new Date().toISOString() };
+            saveState(); renderCurrent();
+        }
+        function certifyMeeting(i, name) {
+            if (!name) return alert('Please select a name.');
+            if (!state.certifiedLog) state.certifiedLog = {};
+            state.certifiedLog['mtg_' + i] = { name, time: new Date().toISOString() };
+            saveState(); renderCurrent();
+        }
 
         // ══════════════════════════════════════════
         // SERVICE DRAWER
@@ -2357,6 +2708,62 @@
                   <textarea rows="2" style="width:100%;font-size:12px;background:var(--bg-glass);border:1px solid var(--border);border-radius:6px;padding:6px;color:var(--text);resize:vertical" placeholder="Overall service notes and observations..." ${isLocked ? 'disabled' : `onblur="saveLog('${dk}','report',this.value)"`}>${sl.report || ''}</textarea>
                 </div>
               </div>`;
+                const cert = state.certifiedLog?.[dk];
+                const certHtml = cert
+                    ? `<div style="margin-top:12px;padding:8px;background:rgba(52,211,153,0.1);border:1px solid var(--accent-green);border-radius:6px;display:flex;align-items:center;gap:8px">
+                        <span style="font-size:18px">✅</span>
+                        <div><div style="font-size:11px;font-weight:700;color:var(--accent-green)">CERTIFIED REPORT</div>
+                        <div style="font-size:10px;color:var(--text-dim)">By ${cert.name} on ${new Date(cert.time).toLocaleString()}</div></div>
+                       </div>`
+                    : `<div style="margin-top:12px;padding:12px;background:var(--bg-glass);border:1px dashed var(--border);border-radius:6px">
+                        <div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:8px;text-transform:uppercase">Verify & Certify Report</div>
+                        <div style="display:flex;gap:8px">
+                            <select id="certName-${dk}" style="font-size:11px;padding:6px">${members.map(m => `<option value="${m}">${m}</option>`).join('')}</select>
+                            <button class="btn btn-primary" style="padding:6px 12px;font-size:11px" onclick="certifyService('${dk}', document.getElementById('certName-${dk}').value)">Certify</button>
+                        </div>
+                        <div style="font-size:9px;color:var(--text-muted);margin-top:6px">Note: Certification locks this report for non-admins.</div>
+                       </div>`;
+
+                const mkChecklistSection = (type, title) => {
+                    const items = state.checklists[type] || [];
+                    if (items.length === 0) return '';
+                    const memberOpts = members.map(m => `<option value="${m}">${m.split(' ')[0]}</option>`).join('');
+                    const checklistItems = items.map(item => {
+                        const log = state.checklistLogs[dk]?.[item.id];
+                        const isChecked = log && log.done;
+                        const byWho = isChecked ? log.by : '';
+                        const atTime = isChecked ? new Date(log.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+                        return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <input type="checkbox" id="cl-${dk}-${item.id}" ${isChecked ? 'checked' : ''} ${isLocked ? 'disabled' : ''}
+                                    onchange="toggleChecklistWithName('${dk}','${item.id}',this.checked,document.getElementById('clname-${dk}-${item.id}').value)"
+                                    style="width:16px;height:16px;cursor:pointer;flex-shrink:0">
+                                <div style="flex:1">
+                                    <div style="font-size:12px;color:${isChecked ? 'var(--text-dim)' : 'var(--text)'};text-decoration:${isChecked ? 'line-through' : 'none'}">${item.task}</div>
+                                    <div style="font-size:9px;color:var(--gold);opacity:0.8">${item.time || ''} · <strong>${item.cat || ''}</strong></div>
+                                </div>
+                                ${isChecked
+                                ? `<div style="text-align:right;font-size:9px;color:var(--accent-green);line-height:1.4">✓ <strong>${byWho}</strong><br>${atTime}</div>`
+                                : `<select id="clname-${dk}-${item.id}" style="font-size:10px;padding:3px 6px;width:90px;flex-shrink:0">${memberOpts}</select>`
+                            }
+                            </div>
+                        </div>`;
+                    }).join('');
+                    const total = items.length;
+                    const done = items.filter(item => state.checklistLogs[dk]?.[item.id]?.done).length;
+                    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                    return `<div style="margin-top:16px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                            <div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">${title}</div>
+                            <div style="font-size:10px;color:${pct === 100 ? 'var(--accent-green)' : 'var(--text-dim)'}">${done}/${total} done${pct === 100 ? ' ✓' : ''}</div>
+                        </div>
+                        <div style="height:3px;background:var(--border);border-radius:2px;margin-bottom:10px">
+                            <div style="height:100%;width:${pct}%;background:${pct === 100 ? 'var(--accent-green)' : 'var(--gold)'};border-radius:2px;transition:width .3s"></div>
+                        </div>
+                        ${checklistItems}
+                    </div>`;
+                };
+
                 return `<div class="log-card" id="log-${dk}">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                 <div>
@@ -2365,8 +2772,14 @@
                 </div>
                 ${isLocked ? '<span style="font-size:10px;color:var(--accent-red);font-weight:700">🔒 LOCKED</span>' : ''}
               </div>
+              <div style="background:rgba(212,168,67,0.05);padding:10px;border-radius:8px;margin-bottom:16px">
+                ${mkChecklistSection('pre', 'Pre-Service Checklist')}
+                ${mkChecklistSection('in', 'In-Service Checklist')}
+                ${mkChecklistSection('post', 'Post-Service Checklist')}
+              </div>
               ${memberEntries}
               ${logFields}
+              ${certHtml}
             </div>`;
             }).join('');
             document.getElementById('drawerBody').innerHTML = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Attendance — ${mo} ${yr}</div>${logsHtml}`;
@@ -2404,6 +2817,18 @@
             if (!entry.present) { entry.arrivalTime = ''; state.servicePerformance[name][dk].onTime = 'N'; }
             saveState(); renderDrawer();
         }
+        function toggleChecklistWithName(dk, itemId, checked, name) {
+            if (!state.checklistLogs[dk]) state.checklistLogs[dk] = {};
+            if (checked) {
+                state.checklistLogs[dk][itemId] = { done: true, by: name || 'Unknown', at: new Date().toISOString() };
+                logActivity('checklist', `${name} completed task: ${itemId} for ${dk}`);
+            } else {
+                state.checklistLogs[dk][itemId] = { done: false, by: '', at: null };
+            }
+            saveState(); renderDrawer();
+        }
+        // Legacy support
+        function toggleChecklist(dk, itemId, checked) { toggleChecklistWithName(dk, itemId, checked, 'Unknown'); }
         function toggleLock(dk) { if (!state.memberAttendance[dk]) state.memberAttendance[dk] = { locked: false, entries: {} }; state.memberAttendance[dk].locked = !state.memberAttendance[dk].locked; saveState(); showAdminSummary(); }
         function saveLog(dk, field, val) {
             if (!state.serviceLog[dk]) state.serviceLog[dk] = { issues: '', recommendations: '', report: '' };
@@ -2411,47 +2836,7 @@
             saveState();
         }
 
-        // ══════════════════════════════════════════
-        // STEP 8 — MEETING MINUTES
-        // ══════════════════════════════════════════
-        function addMeeting() {
-            if (!state.meetingMinutes) state.meetingMinutes = [];
-            state.meetingMinutes.push({ date: '', agenda: '', minutes: '' });
-            saveState(); renderCurrent();
-        }
-        function removeMeeting(i) {
-            state.meetingMinutes.splice(i, 1);
-            saveState(); renderCurrent();
-        }
-        function renderStep8() {
-            if (!state.meetingMinutes) state.meetingMinutes = [];
-            const meetingsHtml = state.meetingMinutes.length === 0
-                ? `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">📝 No meetings recorded yet. Click below to add one.</div>`
-                : state.meetingMinutes.map((mtg, i) => `
-                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:12px">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-                    <div style="font-weight:700;font-size:14px;color:var(--gold)">📍 Meeting ${i + 1}</div>
-                    <button class="btn btn-icon" onclick="removeMeeting(${i})">✕</button>
-                  </div>
-                  <div class="form-group" style="margin-bottom:12px">
-                    <label class="field-label">Date of Meeting</label>
-                    <input type="date" value="${mtg.date}" onchange="state.meetingMinutes[${i}].date=this.value;saveState()">
-                  </div>
-                  <div class="form-group" style="margin-bottom:12px">
-                    <label class="field-label">Agenda</label>
-                    <textarea rows="4" placeholder="List agenda items, one per line..." onblur="state.meetingMinutes[${i}].agenda=this.value;saveState()">${mtg.agenda || ''}</textarea>
-                  </div>
-                  <div class="form-group">
-                    <label class="field-label">Minutes / Notes</label>
-                    <textarea rows="6" placeholder="Record what was discussed, decisions made, and action points..." onblur="state.meetingMinutes[${i}].minutes=this.value;saveState()">${mtg.minutes || ''}</textarea>
-                  </div>
-                </div>`).join('');
-            return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-gold">📝</div><div><h2>Departmental Meeting Minutes</h2><div class="subtitle">Record agendas and minutes — included in Word report</div></div></div>
-              ${meetingsHtml}
-              <button class="btn btn-ghost-add" onclick="addMeeting()" style="margin-top:8px">+ Add Meeting Record</button>
-            </div>
-            <div class="nav-row"><button class="btn btn-outline" onclick="goStep(7)">← Back to Generate</button><div></div></div>`;
-        }
+
 
         // ══════════════════════════════════════════
         // ADMIN VIEW IN DRAWER
@@ -2546,9 +2931,40 @@
                         const task = e.taskNotes ? ` — ${e.taskNotes}` : '';
                         return `${m}${time}${task}`;
                     });
-                    return `<tr><td style="font-weight:600">${svc.label}</td><td>${presentNames.join('<br>') || '—'}</td><td>${sl.issues || '—'}</td><td>${sl.recommendations || '—'}</td><td>${sl.report || '—'}</td></tr>`;
+                    const cert = state.certifiedLog?.[dk];
+                    const certBadge = cert ? `<br><span style="font-size:8pt;color:#059669;font-weight:bold">✓ Certified by ${cert.name}</span>` : '';
+                    const clHtml = (() => {
+                        const logs = state.checklistLogs[dk] || {};
+                        const sections = [
+                            { type: 'pre', label: 'Pre-Service', items: state.checklists.pre || [] },
+                            { type: 'in', label: 'In-Service', items: state.checklists.in || [] },
+                            { type: 'post', label: 'Post-Service', items: state.checklists.post || [] }
+                        ];
+                        const allItems = [...(state.checklists.pre || []), ...(state.checklists.in || []), ...(state.checklists.post || [])];
+                        if (allItems.length === 0) return '';
+                        const totalDone = allItems.filter(item => logs[item.id]?.done).length;
+                        let html = `<p style="font-size:10pt;font-weight:bold;margin-top:8px">Operational Checklist — ${totalDone}/${allItems.length} completed</p>`;
+                        sections.forEach(sec => {
+                            const doneItems = sec.items.filter(item => logs[item.id]?.done);
+                            if (doneItems.length === 0) return;
+                            html += `<p style="font-size:9pt;font-weight:bold;margin:6px 0 2px;color:#b8860b">${sec.label}:</p>
+                            <table style="width:100%;font-size:8pt;border-collapse:collapse">
+                            <tr style="background:#f9f9f9"><th style="text-align:left;padding:3px 6px;border:1px solid #ddd">Task</th><th style="padding:3px 6px;border:1px solid #ddd">Category</th><th style="padding:3px 6px;border:1px solid #ddd">Completed By</th><th style="padding:3px 6px;border:1px solid #ddd">Time</th></tr>
+                            ${doneItems.map(item => {
+                                const log = logs[item.id];
+                                const atTime = log.at ? new Date(log.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
+                                return `<tr><td style="padding:3px 6px;border:1px solid #eee">${item.task}</td><td style="padding:3px 6px;border:1px solid #eee;text-align:center">${item.cat || '—'}</td><td style="padding:3px 6px;border:1px solid #eee;color:#059669;font-weight:bold">${log.by || '—'}</td><td style="padding:3px 6px;border:1px solid #eee;text-align:center">${atTime} WAT</td></tr>`;
+                            }).join('')}
+                            </table>`;
+                        });
+                        return html;
+                    })();
+                    const isSun = dk.includes('Sun');
+                    const attTable = presentNames.length > 0 ? `<ul>${presentNames.map(name => `<li>${name}</li>`).join('')}</ul>` : '<p style="font-size:9pt;color:#ef4444"><i>No attendance recorded.</i></p>';
+
+                    return `<div style="margin-bottom:20pt;padding-bottom:10pt;border-bottom:1px dashed #eee"><h3>${isSun ? '⛪' : '🎵'} ${svc.label}</h3>${certBadge}${clHtml}<p><strong>Steward Attendance:</strong></p>${attTable}<p><strong>Issues:</strong> ${sl.issues || 'None'}</p><p><strong>Recommendations:</strong> ${sl.recommendations || 'None'}</p><p><strong>Notes:</strong> ${sl.report || 'None'}</p></div>`;
                 }).join('');
-                return `<h2>Service-by-Service Report</h2><table class="wide-table"><thead><tr><th style="width:18%">Service</th><th style="width:28%">Attendance &amp; Tasks</th><th style="width:18%">Issues</th><th style="width:18%">Recommendations</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>`;
+                return `<h2>Service-by-Service Report</h2><div class="service-report-container">${rows}</div>`;
             })();
             // Performance Section
             const perfSection = (() => {
@@ -2572,7 +2988,11 @@
             // Expense Section
             const expenseSection = (() => {
                 if (state.expenses.length === 0) return '';
-                const rows = state.expenses.map(ex => `<tr><td>${ex.date}</td><td>${ex.desc}</td><td>${ex.type.toUpperCase()}</td><td style="text-align:right">₦${ex.amount.toLocaleString()}</td></tr>`).join('');
+                const rows = state.expenses.map(ex => {
+                    const cert = state.certifiedLog?.['ex_' + ex.id];
+                    const certTxt = cert ? ` <span style="font-size:7pt;color:#059669">(Verified: ${cert.name.split(' ')[0]})</span>` : '';
+                    return `<tr><td>${ex.date}</td><td>${ex.desc}${certTxt}</td><td>${ex.type.toUpperCase()}</td><td style="text-align:right">₦${ex.amount.toLocaleString()}</td></tr>`;
+                }).join('');
                 const total = state.expenses.reduce((s, e) => s + (e.type === 'expense' ? e.amount : -e.amount), 0);
                 return `<h2>Departmental Expense Report</h2><table class="wide-table"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th style="text-align:right">Amount</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th colspan="3" style="text-align:right">Net Total</th><th style="text-align:right">₦${total.toLocaleString()}</th></tr></tfoot></table>`;
             })();
@@ -2580,9 +3000,11 @@
                 const mtgs = state.meetingMinutes || [];
                 if (mtgs.length === 0) return '';
                 const mtgHtml = mtgs.map((mtg, i) => {
+                    const cert = state.certifiedLog?.['mtg_' + i];
+                    const certBadge = cert ? `<p style="font-size:9pt;color:#059669;font-weight:bold">✅ Recorded & Verified by ${cert.name}</p>` : '';
                     const agendaItems = (mtg.agenda || '').split('\n').filter(l => l.trim()).map(l => `<li>${l}</li>`).join('');
                     const minuteItems = (mtg.minutes || '').split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
-                    return `<h3>${mtg.title || `Meeting ${i + 1}`} — ${mtg.date || ''}</h3><p><strong>Agenda:</strong></p><ul>${agendaItems}</ul><p><strong>Minutes:</strong></p>${minuteItems}`;
+                    return `<h3>${mtg.title || `Meeting ${i + 1}`} — ${mtg.date || ''}</h3>${certBadge}<p><strong>Agenda:</strong></p><ul>${agendaItems}</ul><p><strong>Minutes:</strong></p>${minuteItems}`;
                 }).join('');
                 return `<h2>Meetings & Minutes</h2>${mtgHtml}`;
             })();
@@ -2617,40 +3039,94 @@
         // MINISTER DASHBOARD
         // ══════════════════════════════════════════
         function renderMinisterDashboard() {
-            const mo = MONTHS[state.month], yr = state.year, members = getActiveMembers(), svcDates = getServiceDatesForRoster();
-            const D = state.dieselPrice, P = state.petrolPrice, rehCPH = ceil10(2.5 * P);
-            let grandTotal = 0; state.weeks.forEach(wk => { grandTotal += 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3; wk.specials.forEach(ev => { const lph = ev.litresPerHour || 2.5, ft = ev.fuelType || 'petrol'; grandTotal += ceil10(lph * (ft === 'diesel' ? D : P)) * (ev.hours || 3); }); });
-            let totalPresent = 0, totalPossible = 0;
-            svcDates.forEach(svc => { const dk = dateKey(svc.date), att = state.memberAttendance[dk] || { entries: {} }; totalPresent += Object.values(att.entries).filter(e => e.present).length; totalPossible += members.length; });
-            const attPct = totalPossible > 0 ? Math.round((totalPresent / totalPossible) * 100) : 0;
-            const avgScore = members.length > 0 ? Math.round(members.reduce((s, m) => s + calcMemberScore(m, svcDates).aggregate, 0) / members.length) : 0;
+            try {
+                const mo = MONTHS[state.month] || 'Month', yr = state.year || 2026, members = getActiveMembers(), svcDates = getServiceDatesForRoster();
+                const D = parseFloat(state.dieselPrice) || 1000, P = parseFloat(state.petrolPrice) || 845;
+                const rehCPH = ceil10(2.5 * P);
 
-            const scorecards = members.map(m => { const res = calcMemberScore(m, svcDates); const sc = res.aggregate; const c = sc >= 80 ? 'sc-a' : sc >= 60 ? 'sc-b' : 'sc-c'; return `<div class="score-card"><div class="sc-name">${m.split(' ')[0]}</div><div class="sc-score ${c}">${sc}%</div><div class="sc-label">Performance</div></div>`; }).join('');
+                let grandTotal = 0;
+                (state.weeks || []).forEach(wk => {
+                    grandTotal += (12 * D * 2.5) + (12 * D * 4) + (rehCPH * 3);
+                    (wk.specials || []).forEach(ev => {
+                        const lph = parseFloat(ev.litresPerHour) || 2.5;
+                        const ft = ev.fuelType || 'petrol';
+                        const hrs = parseFloat(ev.hours) || 3;
+                        grandTotal += ceil10(lph * (ft === 'diesel' ? D : P)) * hrs;
+                    });
+                });
 
-            const commentsHtml = (state.ministerComments || []).map(c => `<div class="comment-bubble ${c.from}"><div>${c.text}</div><div class="comment-meta">${c.from === 'minister' ? '👑 Minister' : '🔧 Admin'} · ${new Date(c.time).toLocaleString()}</div></div>`).join('') || '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:12px">No comments yet</div>';
+                let totalPresent = 0, totalPossible = 0;
+                svcDates.forEach(svc => {
+                    const dk = dateKey(svc.date);
+                    const att = state.memberAttendance[dk] || { entries: {} };
+                    const entries = att.entries || {};
+                    totalPresent += Object.values(entries).filter(e => e && e.present).length;
+                    totalPossible += members.length;
+                });
 
-            const feedHtml = (state.activityLog || []).slice(0, 20).map(a => `<div class="feed-item"><div class="feed-dot" style="background:var(--gold)"></div><div style="flex:1"><div>${a.detail || a.action}</div><div class="feed-time">${new Date(a.time).toLocaleString()}</div></div></div>`).join('') || '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:12px">No activity yet</div>';
+                const attPct = totalPossible > 0 ? Math.round((totalPresent / totalPossible) * 100) : 0;
+                const avgScore = members.length > 0 ? Math.round(members.reduce((s, m) => s + (calcMemberScore(m, svcDates).aggregate || 0), 0) / members.length) : 0;
 
-            return `<div class="kpi-grid fade-in">
-            <div class="kpi"><div class="kpi-val">${attPct}%</div><div class="kpi-lbl">Attendance</div><div class="kpi-sub">${totalPresent}/${totalPossible} check-ins</div></div>
-            <div class="kpi"><div class="kpi-val">₦${(grandTotal / 1000).toFixed(0)}k</div><div class="kpi-lbl">Budget</div><div class="kpi-sub">${mo} ${yr}</div></div>
-            <div class="kpi"><div class="kpi-val">${members.length}</div><div class="kpi-lbl">Members</div><div class="kpi-sub">Active stewards</div></div>
-            <div class="kpi"><div class="kpi-val">${avgScore}%</div><div class="kpi-lbl">Avg Score</div><div class="kpi-sub">Performance</div></div>
-          </div>
+                const scorecards = members.map(m => {
+                    const res = calcMemberScore(m, svcDates);
+                    const sc = res.aggregate || 0;
+                    const c = sc >= 80 ? 'sc-a' : sc >= 60 ? 'sc-b' : 'sc-c';
+                    return `<div class="score-card fade-in"><div class="sc-name">${m.split(' ')[0]}</div><div class="sc-score ${c}">${sc}%</div><div class="sc-label">Performance</div></div>`;
+                }).join('') || '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:20px">No members found</div>';
 
-          <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-gold">📊</div><div><h2>Member Scorecards</h2><div class="subtitle">Color-coded performance overview</div></div></div>
-            <div class="score-cards">${scorecards}</div></div>
+                const commentsHtml = (state.ministerComments || []).map(c => `
+                    <div class="comment-bubble ${c.from} fade-in">
+                        <div>${c.text}</div>
+                        <div class="comment-meta">${c.from === 'minister' ? '👑 Minister' : '🔧 Admin'} · ${new Date(c.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>`).join('') || '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:12px">No comments yet</div>';
 
-          <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">📥</div><div><h2>Download Center</h2><div class="subtitle">Download reports for any month</div></div></div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap"><button class="btn btn-gen-excel" onclick="generateExcel()">📊 Budget (Excel)</button><button class="btn btn-gen-word" onclick="generateWord()">📄 Report (Word)</button></div></div>
+                const activityItems = (state.activityLog || []).slice(0, 15);
+                const feedHtml = activityItems.map(a => `
+                    <div class="feed-item fade-in">
+                        <div class="feed-dot" style="background:${a.action === 'certify' ? 'var(--accent-green)' : 'var(--gold)'}"></div>
+                        <div style="flex:1">
+                            <div style="color:var(--text)">${a.detail || a.action}</div>
+                            <div class="feed-time">${new Date(a.time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                    </div>`).join('') || '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:12px">No recent activity</div>';
 
-          <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-gold">💬</div><div><h2>Comments & Questions</h2><div class="subtitle">Leave feedback for the department head</div></div></div>
-            <div class="minister-comment-thread">${commentsHtml}</div>
-            <div style="display:flex;gap:8px"><input type="text" id="ministerCommentInput" placeholder="Type your comment or question..." style="flex:1">
-              <button class="btn btn-primary" onclick="postMinisterComment()">Send</button></div></div>
+                return `
+                <div class="kpi-grid fade-in">
+                    <div class="kpi"><div class="kpi-val">${attPct}%</div><div class="kpi-lbl">Attendance</div><div class="kpi-sub">${totalPresent}/${totalPossible} check-ins</div></div>
+                    <div class="kpi"><div class="kpi-val">₦${(grandTotal / 1000).toLocaleString(undefined, { maximumFractionDigits: 0 })}k</div><div class="kpi-lbl">Budget</div><div class="kpi-sub">${mo} ${yr}</div></div>
+                    <div class="kpi"><div class="kpi-val">${members.length}</div><div class="kpi-lbl">Members</div><div class="kpi-sub">Active team</div></div>
+                    <div class="kpi"><div class="kpi-val">${avgScore}%</div><div class="kpi-lbl">Avg Score</div><div class="kpi-sub">Department Performance</div></div>
+                </div>
 
-          <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-green">📡</div><div><h2>Live Activity Feed</h2><div class="subtitle">Real-time updates from the department</div></div></div>
-            <div class="activity-feed">${feedHtml}</div></div>`;
+                <div class="glass fade-in">
+                    <div class="glass-header"><div class="glass-icon glass-icon-gold">📊</div><div><h2>Performance Overview</h2><div class="subtitle">Individual member aggregate scores</div></div></div>
+                    <div class="score-cards">${scorecards}</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:20px" class="db-grid-mobile">
+                    <div class="glass fade-in">
+                        <div class="glass-header"><div class="glass-icon glass-icon-navy">💬</div><div><h2>Feedback & Comments</h2><div class="subtitle">Communicate with your department heads</div></div></div>
+                        <div class="minister-comment-thread" id="commentThread">${commentsHtml}</div>
+                        <div style="display:flex;gap:8px;margin-top:16px"><input type="text" id="ministerCommentInput" placeholder="Type a message..." style="flex:1">
+                            <button class="btn btn-primary" onclick="postMinisterComment()">Send</button></div>
+                    </div>
+                    <div class="glass fade-in">
+                        <div class="glass-header"><div class="glass-icon glass-icon-green">📡</div><div><h2>Live Activity</h2><div class="subtitle">Real-time update stream</div></div></div>
+                        <div class="activity-feed">${feedHtml}</div>
+                    </div>
+                </div>
+
+                <div class="glass fade-in">
+                    <div class="glass-header"><div class="glass-icon glass-icon-navy">📥</div><div><h2>Report Downloads</h2><div class="subtitle">Download historical data for this month</div></div></div>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap">
+                        <button class="btn btn-outline" style="border-color:var(--accent-blue);color:var(--accent-blue)" onclick="generateExcel()">📊 Monthly Budget (Excel)</button>
+                        <button class="btn btn-primary" onclick="generateWord()">📄 Full Activity Report (Word)</button>
+                    </div>
+                </div>`;
+            } catch (e) {
+                console.error("Dashboard Error:", e);
+                return `<div class="alert alert-error">Error loading dashboard: ${e.message}</div>`;
+            }
         }
 
         function postMinisterComment() {
@@ -2690,6 +3166,7 @@
                 else if (state.step === 7) stepHtml = renderStep7();
                 else if (state.step === 8) stepHtml = renderStep8();
                 else if (state.step === 9) stepHtml = renderStep9();
+                else if (state.step === 10) stepHtml = renderStep10();
                 root.innerHTML = `<div class="app-layout"><div class="sidebar slide-in">
               <div class="sidebar-label">Admin Portal</div>${sidebarHtml}
               <div class="sidebar-label" style="margin-top:20px">Tools</div>
@@ -2703,7 +3180,13 @@
             adminBtn.innerHTML = '🔐 Admin'; adminBtn.className = 'g-btn g-btn-gold';
             const members = getActiveMembers(), svcDates = getServiceDatesForRoster();
             let totalPresent = 0, totalPossible = 0;
-            svcDates.forEach(svc => { const dk = dateKey(svc.date), att = state.memberAttendance[dk] || { entries: {} }; totalPresent += Object.values(att.entries).filter(e => e.present).length; totalPossible += members.length; });
+            svcDates.forEach(svc => {
+                const dk = dateKey(svc.date);
+                const att = state.memberAttendance[dk] || { entries: {} };
+                const entries = att.entries || {};
+                totalPresent += Object.values(entries).filter(e => e && e.present).length;
+                totalPossible += members.length;
+            });
             const nextSvcs = svcDates.filter(s => new Date(s.date) >= new Date()).slice(0, 4);
             const svcCards = nextSvcs.length > 0 ? nextSvcs.map(s => {
                 const isSun = s.label.includes('Sunday');
@@ -2732,10 +3215,17 @@
         // ══════════════════════════════════════════
         // INIT
         // ══════════════════════════════════════════
-        if (state.teamMembers.length === 0 || (state.teamMembers.length === 1 && !state.teamMembers[0].trim())) { state.teamMembers = [...DEFAULT_STATE.teamMembers]; saveState(); }
-        renderCurrent();
-        initFirebase();
-        initJsonbin();
+        try {
+            if (!state.teamMembers || state.teamMembers.length === 0) {
+                state.teamMembers = [...DEFAULT_STATE.teamMembers];
+            }
+            if (typeof initFirebase === 'function') initFirebase();
+            if (typeof initJsonbin === 'function') initJsonbin();
+            renderCurrent();
+        } catch (e) {
+            console.error("Init Error:", e);
+            document.getElementById('appRoot').innerHTML = `<div class="alert alert-error">Critical Error: ${e.message}</div>`;
+        }
     </script>
 </body>
 
