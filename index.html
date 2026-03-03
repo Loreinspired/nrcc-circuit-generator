@@ -1741,7 +1741,8 @@
                 appId: "1:1008672672449:web:4bc437593048efd092e240",
                 measurementId: "G-31QR7THST7"
             }, isAdminMode: false, currentView: 'public',
-            activityLog: [], ministerComments: [], serviceLog: {}
+            activityLog: [], ministerComments: [], serviceLog: {},
+            meetingMinutes: []
         };
         function loadState() {
             try {
@@ -1762,6 +1763,7 @@
                     if (!p.activityLog) p.activityLog = [];
                     if (!p.ministerComments) p.ministerComments = [];
                     if (!p.currentView) p.currentView = 'public';
+                    if (!p.meetingMinutes) p.meetingMinutes = [];
                     p.isAdminMode = false; p.currentView = 'public';
                     return p;
                 }
@@ -1807,7 +1809,8 @@
             { n: 4, icon: '📋', label: 'Roster' },
             { n: 5, icon: '📊', label: 'Performance' },
             { n: 6, icon: '🙏', label: 'Spiritual' },
-            { n: 7, icon: '📄', label: 'Generate' }
+            { n: 7, icon: '📄', label: 'Generate' },
+            { n: 8, icon: '📝', label: 'Meetings' }
         ];
 
         // ══════════════════════════════════════════
@@ -2030,22 +2033,69 @@
         // ══════════════════════════════════════════
         // SERVICE DRAWER
         // ══════════════════════════════════════════
-        function openDrawer() { document.getElementById('serviceDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('open'); renderDrawer(); }
+        function openDrawer(targetDk) {
+            document.getElementById('serviceDrawer').classList.add('open');
+            document.getElementById('drawerOverlay').classList.add('open');
+            renderDrawer(targetDk);
+        }
         function closeDrawer() { document.getElementById('serviceDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
-        function renderDrawer() {
+        function renderDrawer(targetDk) {
             const svcDates = getServiceDatesForRoster(), members = getActiveMembers(), mo = MONTHS[state.month], yr = state.year;
             if (svcDates.length === 0) { document.getElementById('drawerBody').innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-dim)"><div style="font-size:32px;margin-bottom:12px">📋</div><p style="font-size:13px">Complete Steps 1 & 2 first.</p></div>`; return; }
             const logsHtml = svcDates.map(svc => {
-                const dk = dateKey(svc.date), att = state.memberAttendance[dk] || { locked: false, entries: {} }, isLocked = att.locked;
+                const dk = dateKey(svc.date);
+                const att = state.memberAttendance[dk] || { locked: false, entries: {} };
+                const sl = state.serviceLog[dk] || {};
+                const isLocked = att.locked;
+                const isSun = svc.label.includes('Sunday');
                 const memberEntries = members.map(m => {
                     const entry = att.entries[m] || { present: false, arrivalTime: '' };
-                    return `<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);gap:8px"><div style="flex:1;font-size:13px;font-weight:500">${m}</div>
-            <input type="text" placeholder="Time" value="${entry.arrivalTime}" style="width:70px;padding:4px 6px;font-size:11px" ${isLocked ? 'disabled' : `onblur="saveAttendance('${dk}','${m.replace(/'/g, "\\'")}','arrivalTime',this.value)"`}>
-            <button onclick="togglePresent('${dk}','${m.replace(/'/g, "\\'")}')" ${isLocked ? 'disabled' : ''} style="background:${entry.present ? 'var(--accent-green)' : 'var(--bg-glass)'};color:${entry.present ? '#fff' : 'var(--text-dim)'};border:1px solid ${entry.present ? 'var(--accent-green)' : 'var(--border)'};padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer">${entry.present ? 'Present' : 'Absent'}</button></div>`;
+                    const ms = m.replace(/'/g, "\\'");
+                    const taskVal = entry.taskNotes || '';
+                    return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <div style="flex:1;font-size:13px;font-weight:600">${m}</div>
+                <input type="time" value="${entry.arrivalTime}" title="Arrival time (WAT)" style="width:80px;padding:4px 6px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-glass);color:var(--text)" ${isLocked ? 'disabled' : `onchange="saveAttendance('${dk}','${ms}','arrivalTime',this.value)"`}>
+                <button onclick="togglePresent('${dk}','${ms}')" ${isLocked ? 'disabled' : ''} style="background:${entry.present ? 'var(--accent-green)' : 'var(--bg-glass)'};color:${entry.present ? '#fff' : 'var(--text-dim)'};border:1px solid ${entry.present ? 'var(--accent-green)' : 'var(--border)'};padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer">${entry.present ? 'Present' : 'Absent'}</button>
+              </div>
+              <input type="text" value="${taskVal}" placeholder="What ${m.split(' ')[0]} did this service..." style="width:100%;font-size:11px;color:var(--text-dim);background:transparent;border:none;border-bottom:1px dashed var(--border);padding:3px 0;outline:none" ${isLocked ? 'disabled' : `onblur="saveAttendance('${dk}','${ms}','taskNotes',this.value)"`}>
+            </div>`;
                 }).join('');
-                return `<div class="log-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="log-card-title" style="margin:0">${svc.label}</div>${isLocked ? '<span style="font-size:10px;color:var(--accent-red);font-weight:700">🔒 LOCKED</span>' : ''}</div>${memberEntries}</div>`;
+                const logFields = `
+              <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08)">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">Service Report</div>
+                <div style="margin-bottom:8px">
+                  <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:3px">ISSUES ENCOUNTERED</label>
+                  <textarea rows="2" style="width:100%;font-size:12px;background:var(--bg-glass);border:1px solid var(--border);border-radius:6px;padding:6px;color:var(--text);resize:vertical" placeholder="Any issues, faults or challenges..." ${isLocked ? 'disabled' : `onblur="saveLog('${dk}','issues',this.value)"`}>${sl.issues || ''}</textarea>
+                </div>
+                <div style="margin-bottom:8px">
+                  <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:3px">RECOMMENDATIONS</label>
+                  <textarea rows="2" style="width:100%;font-size:12px;background:var(--bg-glass);border:1px solid var(--border);border-radius:6px;padding:6px;color:var(--text);resize:vertical" placeholder="Suggestions for improvement..." ${isLocked ? 'disabled' : `onblur="saveLog('${dk}','recommendations',this.value)"`}>${sl.recommendations || ''}</textarea>
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:3px">SERVICE REPORT / NOTES</label>
+                  <textarea rows="2" style="width:100%;font-size:12px;background:var(--bg-glass);border:1px solid var(--border);border-radius:6px;padding:6px;color:var(--text);resize:vertical" placeholder="Overall service notes and observations..." ${isLocked ? 'disabled' : `onblur="saveLog('${dk}','report',this.value)"`}>${sl.report || ''}</textarea>
+                </div>
+              </div>`;
+                return `<div class="log-card" id="log-${dk}">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <div>
+                  <div class="log-card-title" style="margin:0;color:${isSun ? 'var(--gold)' : 'var(--accent-blue)'}">${isSun ? '⛪' : '🎵'} ${svc.label}</div>
+                  <div style="font-size:10px;color:var(--text-muted);margin-top:2px">WAT · West Africa Time</div>
+                </div>
+                ${isLocked ? '<span style="font-size:10px;color:var(--accent-red);font-weight:700">🔒 LOCKED</span>' : ''}
+              </div>
+              ${memberEntries}
+              ${logFields}
+            </div>`;
             }).join('');
             document.getElementById('drawerBody').innerHTML = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Attendance — ${mo} ${yr}</div>${logsHtml}`;
+            if (targetDk) {
+                setTimeout(() => {
+                    const el = document.getElementById('log-' + targetDk);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 80);
+            }
         }
         function saveAttendance(dk, name, field, val) {
             if (!state.memberAttendance[dk]) state.memberAttendance[dk] = { locked: false, entries: {} };
@@ -2075,7 +2125,53 @@
             saveState(); renderDrawer();
         }
         function toggleLock(dk) { if (!state.memberAttendance[dk]) state.memberAttendance[dk] = { locked: false, entries: {} }; state.memberAttendance[dk].locked = !state.memberAttendance[dk].locked; saveState(); showAdminSummary(); }
-        function saveLog(dk, field, val) { if (!state.serviceLog[dk]) state.serviceLog[dk] = { attendance: '', equipment: '', notes: '' }; state.serviceLog[dk][field] = val; saveState(); }
+        function saveLog(dk, field, val) {
+            if (!state.serviceLog[dk]) state.serviceLog[dk] = { issues: '', recommendations: '', report: '' };
+            state.serviceLog[dk][field] = val;
+            saveState();
+        }
+
+        // ══════════════════════════════════════════
+        // STEP 8 — MEETING MINUTES
+        // ══════════════════════════════════════════
+        function addMeeting() {
+            if (!state.meetingMinutes) state.meetingMinutes = [];
+            state.meetingMinutes.push({ date: '', agenda: '', minutes: '' });
+            saveState(); renderCurrent();
+        }
+        function removeMeeting(i) {
+            state.meetingMinutes.splice(i, 1);
+            saveState(); renderCurrent();
+        }
+        function renderStep8() {
+            if (!state.meetingMinutes) state.meetingMinutes = [];
+            const meetingsHtml = state.meetingMinutes.length === 0
+                ? `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">📝 No meetings recorded yet. Click below to add one.</div>`
+                : state.meetingMinutes.map((mtg, i) => `
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:12px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                    <div style="font-weight:700;font-size:14px;color:var(--gold)">📍 Meeting ${i + 1}</div>
+                    <button class="btn btn-icon" onclick="removeMeeting(${i})">✕</button>
+                  </div>
+                  <div class="form-group" style="margin-bottom:12px">
+                    <label class="field-label">Date of Meeting</label>
+                    <input type="date" value="${mtg.date}" onchange="state.meetingMinutes[${i}].date=this.value;saveState()">
+                  </div>
+                  <div class="form-group" style="margin-bottom:12px">
+                    <label class="field-label">Agenda</label>
+                    <textarea rows="4" placeholder="List agenda items, one per line..." onblur="state.meetingMinutes[${i}].agenda=this.value;saveState()">${mtg.agenda || ''}</textarea>
+                  </div>
+                  <div class="form-group">
+                    <label class="field-label">Minutes / Notes</label>
+                    <textarea rows="6" placeholder="Record what was discussed, decisions made, and action points..." onblur="state.meetingMinutes[${i}].minutes=this.value;saveState()">${mtg.minutes || ''}</textarea>
+                  </div>
+                </div>`).join('');
+            return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-gold">📝</div><div><h2>Departmental Meeting Minutes</h2><div class="subtitle">Record agendas and minutes — included in Word report</div></div></div>
+              ${meetingsHtml}
+              <button class="btn btn-ghost-add" onclick="addMeeting()" style="margin-top:8px">+ Add Meeting Record</button>
+            </div>
+            <div class="nav-row"><button class="btn btn-outline" onclick="goStep(7)">← Back to Generate</button><div></div></div>`;
+        }
 
         // ══════════════════════════════════════════
         // ADMIN VIEW IN DRAWER
@@ -2158,13 +2254,40 @@
             let perfSection = ''; if (members.length > 0) { const perfRows = members.map(m => { const sc = calcMemberScore(m, svcDates); const col = sc >= 80 ? '#155724' : sc >= 60 ? '#856404' : '#842029'; const bg = sc >= 80 ? '#d4edda' : sc >= 60 ? '#fff3cd' : '#f8d7da'; return `<tr><td>${m}</td><td style="text-align:center"><strong style="color:${col};background:${bg};padding:2pt 6pt;border-radius:3pt">${sc}%</strong></td></tr>`; }).join(''); perfSection = `<h2>Steward Performance</h2><table><thead><tr><th>Steward</th><th>Score</th></tr></thead><tbody>${perfRows}</tbody></table>`; }
             let spiritSection = ''; if (members.length > 0) { const nw = state.weeks.length || 5; const spiritRows = members.map(m => { const fr = (state.spiritualActivities[m]?.friday || []).filter(v => v === 'Y').length; const sa = (state.spiritualActivities[m]?.saturday || []).filter(v => v === 'Y').length; return `<tr><td>${m}</td><td style="text-align:center">${fr}/${nw}</td><td style="text-align:center">${sa}/${nw}</td></tr>`; }).join(''); spiritSection = `<h2>Spiritual Activities</h2><table><thead><tr><th>Steward</th><th>Friday (${nw} wks)</th><th>Saturday (${nw} wks)</th></tr></thead><tbody>${spiritRows}</tbody></table>`; }
             let rosterSection = ''; if (state.roles && state.roles.some(r => r.primary)) { const rRows = state.roles.map(r => `<tr><td><strong>${r.code}</strong></td><td>${r.name}</td><td>${r.primary || '—'}</td><td>${r.alt1 || '—'}</td><td>${r.alt2 || '—'}</td></tr>`).join(''); rosterSection = `<h2>Roster</h2><table><thead><tr><th>Code</th><th>Role</th><th>Primary</th><th>Alt 1</th><th>Alt 2</th></tr></thead><tbody>${rRows}</tbody></table>`; }
+            // Service Report section
+            const svcLogSection = (() => {
+                const svcDatesAll = getServiceDatesForRoster();
+                const members = getActiveMembers();
+                if (svcDatesAll.length === 0) return '';
+                const rows = svcDatesAll.map(svc => {
+                    const dk = dateKey(svc.date), sl = state.serviceLog[dk] || {}, att = state.memberAttendance[dk] || { entries: {} };
+                    const presentNames = members.filter(m => (att.entries[m] || {}).present).map(m => {
+                        const e = att.entries[m] || {};
+                        const time = e.arrivalTime ? ` (${e.arrivalTime} WAT)` : '';
+                        const task = e.taskNotes ? ` — ${e.taskNotes}` : '';
+                        return `${m}${time}${task}`;
+                    });
+                    return `<tr><td style="font-weight:600">${svc.label}</td><td>${presentNames.join('<br>') || '—'}</td><td>${sl.issues || '—'}</td><td>${sl.recommendations || '—'}</td><td>${sl.report || '—'}</td></tr>`;
+                }).join('');
+                return `<h2>Service-by-Service Report</h2><table style="font-size:10pt"><thead><tr><th>Service</th><th>Attendance & Tasks</th><th>Issues</th><th>Recommendations</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>`;
+            })();
+            // Meeting Minutes section
+            const meetingsSection = (() => {
+                const mtgs = state.meetingMinutes || [];
+                if (mtgs.length === 0) return '';
+                const mtgHtml = mtgs.map((mtg, i) => {
+                    const agendaItems = (mtg.agenda || '').split('\n').filter(l => l.trim()).map(l => `<li>${l}</li>`).join('');
+                    return `<div style="margin-bottom:14pt"><p style="font-weight:bold;margin-bottom:4pt">${mtg.date ? fmtFull(new Date(mtg.date)) : 'Meeting ' + (i + 1)}</p>${agendaItems ? `<p style="font-weight:bold;margin-top:8pt">Agenda</p><ul>${agendaItems}</ul>` : ''}<p style="font-weight:bold;margin-top:8pt">Minutes</p><p>${(mtg.minutes || '—').split('\n').join('<br>')}</p></div>`;
+                }).join('<hr style="margin:12pt 0">');
+                return `<h2>Departmental Meeting Minutes</h2>${mtgHtml}`;
+            })();
             const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Circuit Dept Report ${mo} ${yr}</title><style>body{font-family:Calibri,sans-serif;font-size:12pt;margin:2.54cm;line-height:1.5;color:#111}.church{text-align:center;font-size:18pt;font-weight:bold;text-transform:uppercase;margin-bottom:4pt}.dept-title{text-align:center;font-size:13pt;margin-bottom:4pt}.report-month{text-align:center;font-size:14pt;font-weight:bold;margin-bottom:20pt}h2{font-size:12pt;font-weight:bold;text-transform:uppercase;border-bottom:2px solid #0f1f3d;padding-bottom:3pt;margin:18pt 0 8pt;color:#0f1f3d}p{margin:0 0 8pt}ul{margin:0 0 8pt 24pt}li{margin-bottom:4pt}table{width:100%;border-collapse:collapse;margin:8pt 0;font-size:11pt}th{background:#0f1f3d;color:white;padding:7pt 8pt;text-align:left;font-size:10pt}td{border:1pt solid #ccc;padding:6pt 8pt}tr:nth-child(even) td{background:#f7f7f7}.total-row td{font-weight:bold;background:#fffbeb!important}</style></head><body>
           <div class="church">NEW REALITY CHRISTIAN CENTRE</div><div class="dept-title">ADO-EKITI CAMPUS</div><div class="report-month">CIRCUIT DEPARTMENT REPORT — ${mo.toUpperCase()} ${yr}</div>
           <h2>Introduction</h2><p>The Circuit department is a service of the Church, primarily responsible for providing technical support. The Circuit provides service to every other department, ensuring a successful light and sound experience for the congregation during services and events.</p>
           <h2>Departmental Members</h2><ul>${membersLi}</ul>
           <h2>Goals for ${mo} ${yr}</h2><ul>${goalsLi}</ul>
           <h2>Services & Events</h2><table><thead><tr><th>Week</th><th>Midweek</th><th>Sunday</th><th>Rehearsal</th><th>Specials</th></tr></thead><tbody>${serviceRows}</tbody></table>
-          ${rosterSection}${perfSection}${spiritSection}
+          ${rosterSection}${perfSection}${spiritSection}${svcLogSection}${meetingsSection}
           <h2>Financial Details</h2><table><thead><tr><th>Account</th><th>Balance</th></tr></thead><tbody><tr><td>Seed Account</td><td>₦${state.seedBalance || '_____'}</td></tr><tr><td>Budget Account</td><td>₦${state.budgetBalance || '_____'}</td></tr><tr class="total-row"><td>Budgeted Total</td><td>₦${grandTotal.toLocaleString()}</td></tr></tbody></table>
           <p style="font-style:italic;color:#555;font-size:11pt">Note: Diesel ₦${D.toLocaleString()}/ltr · Petrol ₦${P.toLocaleString()}/ltr.</p><br><br><p>Prepared by: ___________________  Date: ___________________</p></body></html>`;
             const blob = new Blob([html], { type: 'application/msword' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `NRCC Circuit Report - ${mo} ${yr}.doc`; a.click(); URL.revokeObjectURL(url);
@@ -2241,7 +2364,7 @@
                 if (state.step === 1) stepHtml = renderStep1(); else if (state.step === 2) stepHtml = renderStep2();
                 else if (state.step === 3) stepHtml = renderStep3(); else if (state.step === 4) stepHtml = renderStep4();
                 else if (state.step === 5) stepHtml = renderStep5(); else if (state.step === 6) stepHtml = renderStep6();
-                else if (state.step === 7) stepHtml = renderStep7();
+                else if (state.step === 7) stepHtml = renderStep7(); else if (state.step === 8) stepHtml = renderStep8();
                 root.innerHTML = `<div class="app-layout"><div class="sidebar slide-in">
               <div class="sidebar-label">Admin Portal</div>${sidebarHtml}
               <div class="sidebar-label" style="margin-top:20px">Tools</div>
@@ -2257,7 +2380,15 @@
             let totalPresent = 0, totalPossible = 0;
             svcDates.forEach(svc => { const dk = dateKey(svc.date), att = state.memberAttendance[dk] || { entries: {} }; totalPresent += Object.values(att.entries).filter(e => e.present).length; totalPossible += members.length; });
             const nextSvcs = svcDates.filter(s => new Date(s.date) >= new Date()).slice(0, 4);
-            const svcCards = nextSvcs.length > 0 ? nextSvcs.map(s => { const isSun = s.label.includes('Sunday'); return `<div class="pub-svc-card" onclick="openDrawer()"><div class="svc-emoji">${isSun ? '⛪' : '🎵'}</div><div class="svc-name">${isSun ? 'Sunday Service' : 'Midweek Service'}</div><div class="svc-date">${fmtDisplay(s.date)}</div></div>`; }).join('') : `<div class="pub-svc-card" onclick="openDrawer()"><div class="svc-emoji">📋</div><div class="svc-name">View All Services</div><div class="svc-date">Open Service Log</div></div>`;
+            const svcCards = nextSvcs.length > 0 ? nextSvcs.map(s => {
+                const isSun = s.label.includes('Sunday');
+                const dk = dateKey(s.date);
+                return `<div class="pub-svc-card" onclick="openDrawer('${dk}')">
+                  <div class="svc-emoji">${isSun ? '⛪' : '🎵'}</div>
+                  <div class="svc-name">${isSun ? 'Sunday Service' : 'Midweek Service'}</div>
+                  <div class="svc-date">${fmtDisplay(s.date)}</div>
+                </div>`;
+            }).join('') : `<div class="pub-svc-card" onclick="openDrawer()"><div class="svc-emoji">📋</div><div class="svc-name">View All Services</div><div class="svc-date">Open Service Log</div></div>`;
 
             root.innerHTML = `<div class="main-content" style="max-width:700px;margin:0 auto">
             <div class="pub-hero fade-in"><div class="month-chip">${MONTHS[state.month].toUpperCase()} ${state.year}</div>
