@@ -1641,14 +1641,19 @@
                     const r = snap.val();
                     if (r) { Object.assign(state, r); renderCurrent(); showToast('🔄 Synced'); }
                 });
-            } catch (e) { console.error(e); setSyncStatus('error', 'Sync Failed'); }
+            } catch (e) { console.error(e); setSyncStatus('error', 'Sync Error — Check DB Rules'); }
         }
         function setSyncStatus(type, text) {
             const d = document.getElementById('sync-dot'), t = document.getElementById('sync-text');
             if (!d || !t) return;
-            d.className = 'sync-dot' + (type === 'active' ? ' active' : '');
+            d.className = 'sync-dot' + (type === 'active' ? ' active sync-syncing' : '');
+            if (type === 'active') setTimeout(() => d.classList.remove('sync-syncing'), 2000);
             t.textContent = text;
-            if (type === 'syncing') d.classList.add('sync-syncing'); else d.classList.remove('sync-syncing');
+            t.title = type === 'error' ? 'Firebase DB rules may be blocking writes. In Firebase Console → Realtime Database → Rules, set \"write\": true temporarily to test.' : '';
+            t.style.cursor = type === 'error' ? 'help' : '';
+            t.style.color = type === 'error' ? 'var(--accent-red)' : '';
+            t.style.fontWeight = type === 'error' ? '700' : '';
+            if (type === 'syncing') d.classList.add('sync-syncing'); else if (type !== 'active') d.classList.remove('sync-syncing');
         }
         function toggleAdminMode() {
             if (state.currentView === 'admin') { state.currentView = 'public'; state.isAdminMode = false; renderCurrent(); return; }
@@ -1898,26 +1903,69 @@
         // ══════════════════════════════════════════
         // STEP 5 — PERFORMANCE
         // ══════════════════════════════════════════
+        // Helper: cycle through perf values
+        function cyclePerfToggle(m, dk, field) {
+            const cycles = { attended: ['', 'Y', 'N'], onTime: ['', 'Ideal', 'Y', 'N'], dressCode: ['', 'Y', 'N'] };
+            const opts = cycles[field] || ['', 'Y', 'N'];
+            const cur = state.servicePerformance[m]?.[dk]?.[field] || '';
+            const next = opts[(opts.indexOf(cur) + 1) % opts.length];
+            setPerf(m, dk, field, next);
+        }
         function renderStep5() {
             const members = getActiveMembers(), svcDates = getServiceDatesForRoster();
             const serviceOnly = svcDates.filter(s => s.label.toLowerCase().includes('sunday') || s.label.toLowerCase().includes('mid-week'));
             if (members.length === 0 || serviceOnly.length === 0) return `<div class="glass fade-in"><div class="alert alert-warn">Complete Steps 1-3 first.</div></div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(4)">← Back</button><button class="btn btn-primary" onclick="goStep(6)">Next →</button></div>`;
             const scorecards = members.map(m => { const sc = calcMemberScore(m, svcDates); const c = sc >= 80 ? 'sc-a' : sc >= 60 ? 'sc-b' : 'sc-c'; return `<div class="score-card"><div class="sc-name">${m.split(' ')[0]}</div><div class="sc-score ${c}">${sc}%</div><div class="sc-label">Score</div></div>`; }).join('');
-            const hdrs = serviceOnly.map(s => { const isSun = s.label.includes('Sunday'); return `<th style="min-width:90px"><div>${isSun ? 'Sun' : 'Mid'}</div><span class="date-hdr-sub">${fmtDisplay(s.date)}</span></th>`; }).join('');
-            const tbody = members.map(m => {
-                const cells = serviceOnly.map(s => {
-                    const dk = dateKey(s.date), p = state.servicePerformance[m]?.[dk] || {}, att = (state.memberAttendance[dk]?.entries || {})[m] || {};
-                    const selA = `<select onchange="setPerf('${m.replace(/'/g, "\\'")}','${dk}','attended',this.value)"><option value="">—</option><option value="Y"${(p.attended === 'Y' || att.present) ? ' selected' : ''}>✓</option><option value="N"${p.attended === 'N' ? ' selected' : ''}>✗</option></select>`;
-                    const selT = `<select onchange="setPerf('${m.replace(/'/g, "\\'")}','${dk}','onTime',this.value)"><option value="">—</option><option value="Ideal"${p.onTime === 'Ideal' ? ' selected' : ''}>★</option><option value="Y"${p.onTime === 'Y' ? ' selected' : ''}>✓</option><option value="N"${p.onTime === 'N' ? ' selected' : ''}>✗</option></select>`;
-                    const selD = `<select onchange="setPerf('${m.replace(/'/g, "\\'")}','${dk}','dressCode',this.value)"><option value="">—</option><option value="Y"${p.dressCode === 'Y' ? ' selected' : ''}>✓</option><option value="N"${p.dressCode === 'N' ? ' selected' : ''}>✗</option></select>`;
-                    return `<td style="font-size:10px">${selA}${selT}${selD}</td>`;
+            // Render one card per member showing all service dates as rows
+            const memberCards = members.map(m => {
+                const ms = m.replace(/'/g, "\\'");
+                const rows = serviceOnly.map(s => {
+                    const dk = dateKey(s.date);
+                    const p = state.servicePerformance[m]?.[dk] || {};
+                    const att = (state.memberAttendance[dk]?.entries || {})[m] || {};
+                    const isPresent = p.attended === 'Y' || att.present;
+                    const isAbsent = p.attended === 'N';
+                    const attBg = isPresent ? '#059669' : isAbsent ? 'rgba(248,113,113,0.3)' : 'var(--bg-glass)';
+                    const attColor = isPresent ? '#fff' : isAbsent ? 'var(--accent-red)' : 'var(--text-dim)';
+                    const attLabel = isPresent ? '✓ Present' : isAbsent ? '✗ Absent' : '— Attend?';
+                    const ot = p.onTime || '';
+                    const otBg = ot === 'Ideal' ? 'rgba(212,168,67,0.3)' : ot === 'Y' ? 'rgba(96,165,250,0.2)' : ot === 'N' ? 'rgba(248,113,113,0.2)' : 'var(--bg-glass)';
+                    const otColor = ot === 'Ideal' ? 'var(--gold)' : ot === 'Y' ? 'var(--accent-blue)' : ot === 'N' ? 'var(--accent-red)' : 'var(--text-dim)';
+                    const otLabel = ot === 'Ideal' ? '★ Ideal' : ot === 'Y' ? '✓ On Time' : ot === 'N' ? '✗ Late' : '— Time?';
+                    const dc = p.dressCode || '';
+                    const dcBg = dc === 'Y' ? 'rgba(52,211,153,0.2)' : dc === 'N' ? 'rgba(248,113,113,0.2)' : 'var(--bg-glass)';
+                    const dcColor = dc === 'Y' ? 'var(--accent-green)' : dc === 'N' ? 'var(--accent-red)' : 'var(--text-dim)';
+                    const dcLabel = dc === 'Y' ? '✓ Dress OK' : dc === 'N' ? '✗ Dress ✗' : '— Dress?';
+                    const isSun = s.label.includes('Sunday');
+                    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+                      <div style="width:110px;flex-shrink:0">
+                        <div style="font-size:10px;font-weight:700;color:${isSun ? 'var(--gold)' : 'var(--accent-blue)'}">${isSun ? '⛪ Sunday' : '🎵 Midweek'}</div>
+                        <div style="font-size:10px;color:var(--text-muted)">${fmtDisplay(s.date)}</div>
+                      </div>
+                      <button onclick="cyclePerfToggle('${ms}','${dk}','attended')" title="Tap to cycle: Attend?" style="flex:1;background:${attBg};color:${attColor};border:1px solid transparent;border-radius:6px;padding:5px 4px;font-size:11px;font-weight:600;cursor:pointer;text-align:center">${attLabel}</button>
+                      <button onclick="cyclePerfToggle('${ms}','${dk}','onTime')" title="Tap to cycle: On Time?" style="flex:1;background:${otBg};color:${otColor};border:1px solid transparent;border-radius:6px;padding:5px 4px;font-size:11px;font-weight:600;cursor:pointer;text-align:center">${otLabel}</button>
+                      <button onclick="cyclePerfToggle('${ms}','${dk}','dressCode')" title="Tap to cycle: Dress Code?" style="flex:1;background:${dcBg};color:${dcColor};border:1px solid transparent;border-radius:6px;padding:5px 4px;font-size:11px;font-weight:600;cursor:pointer;text-align:center">${dcLabel}</button>
+                    </div>`;
                 }).join('');
-                return `<tr><td class="name-col">${m}</td>${cells}</tr>`;
+                const sc = calcMemberScore(m, svcDates);
+                const scColor = sc >= 80 ? 'var(--accent-green)' : sc >= 60 ? 'var(--gold)' : 'var(--accent-red)';
+                return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                    <div style="font-weight:700;font-size:14px">${m}</div>
+                    <div style="font-size:20px;font-weight:800;color:${scColor}">${sc}%</div>
+                  </div>
+                  <div style="display:flex;gap:6px;font-size:9px;color:var(--text-muted);margin-bottom:6px;padding-left:118px">
+                    <span style="flex:1;text-align:center;text-transform:uppercase;letter-spacing:.05em">Attendance</span>
+                    <span style="flex:1;text-align:center;text-transform:uppercase;letter-spacing:.05em">On Time</span>
+                    <span style="flex:1;text-align:center;text-transform:uppercase;letter-spacing:.05em">Dress Code</span>
+                  </div>
+                  ${rows}
+                </div>`;
             }).join('');
-            return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">📊</div><div><h2>Steward Performance</h2><div class="subtitle">Track attendance, punctuality & dress code</div></div></div>
+            return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">📊</div><div><h2>Steward Performance</h2><div class="subtitle">Click each button to cycle through states</div></div></div>
         <div class="score-cards">${scorecards}</div>
-        <div class="save-note"><strong>Legend:</strong> Each cell: Attended / On-Time / Dress Code. ★ = Ideal timing.</div>
-        <div class="perf-table-wrap"><table class="perf-table"><thead><tr><th class="name-col">Steward</th>${hdrs}</tr></thead><tbody>${tbody}</tbody></table></div>
+        <div class="alert alert-info" style="margin-bottom:12px">💡 <strong>How to use:</strong> Tap each button to cycle → <strong style="color:var(--accent-green)">✓ Present</strong> → <strong style="color:var(--accent-red)">✗ Absent</strong> → unset. Same for On-Time (★ Ideal = bonus points) and Dress Code.</div>
+        ${memberCards}
       </div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(4)">← Back</button><button class="btn btn-primary" onclick="goStep(6)">Next: Spiritual →</button></div>`;
         }
 
