@@ -851,6 +851,87 @@
             border-bottom: 1px solid var(--border);
         }
 
+        /* ── SPC TABLE (Step 5) ── */
+        .spc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            font-size: 11px;
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .spc-table th {
+            background: var(--bg-glass);
+            padding: 10px 6px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dim);
+            text-transform: uppercase;
+            font-size: 8px;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            border-right: 1px solid var(--border);
+        }
+
+        .spc-table th:last-child {
+            border-right: none;
+        }
+
+        .spc-table td {
+            padding: 10px 6px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+        }
+
+        .spc-table td:last-child {
+            border-right: none;
+        }
+
+        .spc-table .name-cell {
+            text-align: left;
+            font-weight: 700;
+            color: var(--text);
+            font-size: 11px;
+            padding-left: 12px;
+        }
+
+        .spc-table .agg-cell {
+            font-weight: 900;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        /* ── EXPENSE TABLE (Step 9) ── */
+        .ex-row {
+            display: grid;
+            grid-template-columns: 110px 1fr 100px 90px 40px;
+            gap: 8px;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-glass);
+            border-radius: var(--radius-sm);
+            margin-bottom: 6px;
+        }
+
+        .ex-type-exp {
+            color: var(--accent-red);
+            font-weight: 700;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .ex-type-ref {
+            color: var(--accent-green);
+            font-weight: 700;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
         .roster-grid tr:nth-child(even) td {
             background: rgba(255, 255, 255, 0.02);
         }
@@ -1740,25 +1821,57 @@
         }
         function calcMemberScore(member, svcDates) {
             const serviceOnly = svcDates.filter(s => s.label.toLowerCase().includes('sunday') || s.label.toLowerCase().includes('mid-week'));
-            let total = 0, possible = 0;
-            serviceOnly.forEach(svc => {
-                const dk = dateKey(svc.date), p = state.servicePerformance[member]?.[dk] || {}, att = (state.memberAttendance[dk]?.entries || {})[member] || {};
-                const isPresent = att.present ?? (p.attended === 'Y');
-                let arrival = att.arrivalTime || '';
-                possible += 3; // Attendance, On-time, Dress Code
-                if (isPresent) total++;
-                let onTimeStatus = p.onTime;
-                if (arrival) {
-                    const [h, m] = arrival.split(':').map(Number), val = h * 60 + (m || 0), isSunday = svc.label.toLowerCase().includes('sunday');
-                    if (isSunday) { if (val <= 7 * 60 + 10) onTimeStatus = 'Ideal'; else if (val <= 7 * 60 + 20) onTimeStatus = 'Y'; else onTimeStatus = 'N'; }
-                    else { if (val <= 17 * 60) onTimeStatus = 'Ideal'; else if (val <= 17 * 60 + 30) onTimeStatus = 'Y'; else onTimeStatus = 'N'; }
-                }
-                if (onTimeStatus === 'Ideal') total += 1.25; else if (onTimeStatus === 'Y') total += 1;
-                if (p.dressCode === 'Y') total++;
-                if (p.tasksDone) { possible++; total += p.tasksDone === 'All' ? 1 : p.tasksDone === 'Most' ? .75 : p.tasksDone === 'Some' ? .5 : 0; }
-                if (p.verified) { possible++; total += p.verified === 'All' ? 1 : p.verified === 'Most' ? .75 : p.verified === 'Some' ? .5 : 0; }
-            });
-            return possible === 0 ? 0 : Math.min(100, Math.round((total / possible) * 100));
+            const nw = state.weeks.length || 1;
+
+            // 1. Punctuality (20 pts)
+            let puncScore = 0;
+            if (serviceOnly.length > 0) {
+                let puncPoints = 0;
+                serviceOnly.forEach(svc => {
+                    const dk = dateKey(svc.date), att = (state.memberAttendance[dk]?.entries || {})[member] || {}, p = state.servicePerformance[member]?.[dk] || {};
+                    let ot = p.onTime;
+                    if (att.arrivalTime) {
+                        const [h, m] = att.arrivalTime.split(':').map(Number), val = h * 60 + (m || 0), isSunday = svc.label.toLowerCase().includes('sunday');
+                        if (isSunday) { if (val <= 7 * 60 + 10) ot = 'Ideal'; else if (val <= 7 * 60 + 20) ot = 'Y'; else ot = 'N'; }
+                        else { if (val <= 17 * 60) ot = 'Ideal'; else if (val <= 17 * 60 + 30) ot = 'Y'; else ot = 'N'; }
+                    }
+                    if (ot === 'Ideal') puncPoints += 1; else if (ot === 'Y') puncPoints += 0.75;
+                });
+                puncScore = Math.round((puncPoints / serviceOnly.length) * 20);
+            }
+
+            // 2. Dress Code (20 pts)
+            let dressScore = 0;
+            if (serviceOnly.length > 0) {
+                let dressPoints = 0;
+                serviceOnly.forEach(svc => {
+                    const dk = dateKey(svc.date), p = state.servicePerformance[member]?.[dk] || {};
+                    if (p.dressCode === 'Y') dressPoints++;
+                });
+                dressScore = Math.round((dressPoints / serviceOnly.length) * 20);
+            }
+
+            // 3. Physical Meetings (20 pts)
+            const fridayAtt = (state.spiritualActivities[member]?.friday || []).filter(v => v === 'Y').length;
+            const physicalScore = Math.round((fridayAtt / nw) * 20);
+
+            // 4. Online Meetings (20 pts)
+            const saturdayAtt = (state.spiritualActivities[member]?.saturday || []).filter(v => v === 'Y').length;
+            const onlineScore = Math.round((saturdayAtt / nw) * 20);
+
+            // 5. Duties (20 pts)
+            let dutyScore = 0;
+            if (serviceOnly.length > 0) {
+                let presentCount = 0;
+                serviceOnly.forEach(svc => {
+                    const dk = dateKey(svc.date), p = state.servicePerformance[member]?.[dk] || {}, att = (state.memberAttendance[dk]?.entries || {})[member] || {};
+                    if (att.present || p.attended === 'Y') presentCount++;
+                });
+                dutyScore = Math.round((presentCount / serviceOnly.length) * 20);
+            }
+
+            const aggregate = puncScore + dressScore + physicalScore + onlineScore + dutyScore;
+            return { punc: puncScore, dress: dressScore, physical: physicalScore, online: onlineScore, duty: dutyScore, aggregate };
         }
 
         // ══════════════════════════════════════════
@@ -1789,7 +1902,7 @@
                 measurementId: "G-31QR7THST7"
             }, isAdminMode: false, currentView: 'public',
             activityLog: [], ministerComments: [], serviceLog: {},
-            meetingMinutes: []
+            meetingMinutes: [], expenses: []
         };
         function loadState() {
             try {
@@ -1811,6 +1924,7 @@
                     if (!p.ministerComments) p.ministerComments = [];
                     if (!p.currentView) p.currentView = 'public';
                     if (!p.meetingMinutes) p.meetingMinutes = [];
+                    if (!p.expenses) p.expenses = [];
                     if (!p.jsonbinKey) p.jsonbinKey = '';
                     if (!p.jsonbinId) p.jsonbinId = '';
                     p.isAdminMode = false; p.currentView = 'public';
@@ -1850,6 +1964,8 @@
             if (n === 4) return state.roles && state.roles.some(r => r.primary);
             if (n === 5) return Object.keys(state.servicePerformance).length > 0;
             if (n === 6) return Object.keys(state.spiritualActivities).length > 0;
+            if (n === 7) return state.meetingMinutes && state.meetingMinutes.length > 0;
+            if (n === 8) return state.expenses && state.expenses.length > 0;
             return false;
         }
         const STEP_DEFS = [
@@ -1859,8 +1975,9 @@
             { n: 4, icon: '📋', label: 'Roster' },
             { n: 5, icon: '📊', label: 'Performance' },
             { n: 6, icon: '🙏', label: 'Spiritual' },
-            { n: 7, icon: '📄', label: 'Generate' },
-            { n: 8, icon: '📝', label: 'Meetings' }
+            { n: 7, icon: '🤝', label: 'Meetings' },
+            { n: 8, icon: '💳', label: 'Expenses' },
+            { n: 9, icon: '📄', label: 'Generate' }
         ];
 
         // ══════════════════════════════════════════
@@ -1987,8 +2104,36 @@
             const members = getActiveMembers(), svcDates = getServiceDatesForRoster();
             const serviceOnly = svcDates.filter(s => s.label.toLowerCase().includes('sunday') || s.label.toLowerCase().includes('mid-week'));
             if (members.length === 0 || serviceOnly.length === 0) return `<div class="glass fade-in"><div class="alert alert-warn">Complete Steps 1-3 first.</div></div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(4)">← Back</button><button class="btn btn-primary" onclick="goStep(6)">Next →</button></div>`;
-            const scorecards = members.map(m => { const sc = calcMemberScore(m, svcDates); const c = sc >= 80 ? 'sc-a' : sc >= 60 ? 'sc-b' : 'sc-c'; return `<div class="score-card"><div class="sc-name">${m.split(' ')[0]}</div><div class="sc-score ${c}">${sc}%</div><div class="sc-label">Score</div></div>`; }).join('');
-            // Render one card per member showing all service dates as rows
+
+            const spcRows = members.map(m => {
+                const r = calcMemberScore(m, svcDates);
+                const color = r.aggregate >= 80 ? 'var(--accent-green)' : r.aggregate >= 60 ? 'var(--gold)' : 'var(--accent-red)';
+                return `<tr>
+                    <td class="name-cell">${m}</td>
+                    <td>${r.punc}</td>
+                    <td>${r.dress}</td>
+                    <td>${r.physical}</td>
+                    <td>${r.online}</td>
+                    <td>${r.duty}</td>
+                    <td class="agg-cell" style="color:${color}">${r.aggregate}%</td>
+                </tr>`;
+            }).join('');
+
+            const spcTable = `<div class="spirit-section-head" style="margin-top:0">Steward Performance Card (SPC) 100%</div>
+                <div style="overflow-x:auto"><table class="spc-table">
+                    <thead><tr>
+                        <th style="text-align:left;padding-left:12px">Names</th>
+                        <th>Punctuality</th>
+                        <th>Dress Code</th>
+                        <th>Physical Fellowship</th>
+                        <th>Online Meetings</th>
+                        <th>Duties</th>
+                        <th>Aggregate (%)</th>
+                    </tr></thead>
+                    <tbody>${spcRows}</tbody>
+                </table></div>`;
+
+            // Render one card per member for manual overrides
             const memberCards = members.map(m => {
                 const ms = m.replace(/'/g, "\\'");
                 const rows = serviceOnly.map(s => {
@@ -2019,13 +2164,8 @@
                       <button onclick="cyclePerfToggle('${ms}','${dk}','dressCode')" title="Tap to cycle: Dress Code?" style="flex:1;background:${dcBg};color:${dcColor};border:1px solid transparent;border-radius:6px;padding:5px 4px;font-size:11px;font-weight:600;cursor:pointer;text-align:center">${dcLabel}</button>
                     </div>`;
                 }).join('');
-                const sc = calcMemberScore(m, svcDates);
-                const scColor = sc >= 80 ? 'var(--accent-green)' : sc >= 60 ? 'var(--gold)' : 'var(--accent-red)';
                 return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                    <div style="font-weight:700;font-size:14px">${m}</div>
-                    <div style="font-size:20px;font-weight:800;color:${scColor}">${sc}%</div>
-                  </div>
+                  <div style="font-weight:700;font-size:14px;margin-bottom:10px">${m}</div>
                   <div style="display:flex;gap:6px;font-size:9px;color:var(--text-muted);margin-bottom:6px;padding-left:118px">
                     <span style="flex:1;text-align:center;text-transform:uppercase;letter-spacing:.05em">Attendance</span>
                     <span style="flex:1;text-align:center;text-transform:uppercase;letter-spacing:.05em">On Time</span>
@@ -2034,9 +2174,9 @@
                   ${rows}
                 </div>`;
             }).join('');
-            return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">📊</div><div><h2>Steward Performance</h2><div class="subtitle">Click each button to cycle through states</div></div></div>
-        <div class="score-cards">${scorecards}</div>
-        <div class="alert alert-info" style="margin-bottom:12px">💡 <strong>How to use:</strong> Tap each button to cycle → <strong style="color:var(--accent-green)">✓ Present</strong> → <strong style="color:var(--accent-red)">✗ Absent</strong> → unset. Same for On-Time (★ Ideal = bonus points) and Dress Code.</div>
+            return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">📊</div><div><h2>Steward Performance</h2><div class="subtitle">Objective automated scoring based on logs</div></div></div>
+        ${spcTable}
+        <div class="alert alert-info" style="margin-bottom:12px;font-size:11px">💡 <strong>Objective Scoring:</strong> Punctuality (20), Dress (20), Physical Mtg (20), Online Mtg (20), and Duties (20) aggregate to 100%. Use buttons below to manually override service-specific data.</div>
         ${memberCards}
       </div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(4)">← Back</button><button class="btn btn-primary" onclick="goStep(6)">Next: Spiritual →</button></div>`;
         }
@@ -2048,42 +2188,113 @@
             const members = getActiveMembers(), nw = state.weeks.length || 5;
             if (members.length === 0) return `<div class="glass fade-in"><div class="alert alert-warn">Add team members first.</div></div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(5)">← Back</button><button class="btn btn-primary" onclick="goStep(7)">Next →</button></div>`;
             const mkTable = (activity, title) => {
-                const wkHdrs = Array.from({ length: nw }, (_, i) => `<th>Wk ${i + 1}</th>`).join('');
+                const wkHdrs = Array.from({ length: nw }, (_, i) => `<th>Week ${i + 1}</th>`).join('');
                 const rows = members.map(m => {
                     if (!state.spiritualActivities[m]) state.spiritualActivities[m] = { friday: Array(nw).fill(''), saturday: Array(nw).fill('') };
                     const sa = state.spiritualActivities[m][activity] || Array(nw).fill('');
                     while (sa.length < nw) sa.push('');
                     const total = sa.filter(v => v === 'Y').length;
-                    const cells = sa.map((v, wi) => `<td><select onchange="setSpiritActivity('${m.replace(/'/g, "\\'")}','${activity}',${wi},this.value)"><option value="">—</option><option value="Y"${v === 'Y' ? ' selected' : ''}>✓</option><option value="N"${v === 'N' ? ' selected' : ''}>✗</option></select></td>`).join('');
-                    return `<tr><td class="name-col">${m}</td>${cells}<td style="text-align:center;font-weight:700;color:var(--accent-green)">${total}/${nw}</td></tr>`;
+                    const cells = sa.map((v, wi) => `<td>
+                        <button onclick="toggleSpirit('${m.replace(/'/g, "\\'")}','${activity}',${wi})" 
+                                style="width:100%;background:${v === 'Y' ? 'var(--accent-green)' : v === 'N' ? 'rgba(248,113,113,0.3)' : 'var(--bg-glass)'};color:${v === 'Y' ? '#0a0f1e' : v === 'N' ? 'var(--accent-red)' : 'var(--text-dim)'};border:none;border-radius:4px;padding:4px;cursor:pointer;font-weight:700;font-size:10px">
+                            ${v === 'Y' ? '✓' : v === 'N' ? '✗' : '—'}
+                        </button>
+                    </td>`).join('');
+                    return `<tr><td class="name-cell" style="padding:8px 12px;border-bottom:1px solid var(--border)">${m}</td>${cells}<td style="text-align:center;font-weight:700;color:var(--accent-green);border-bottom:1px solid var(--border)">${total}/${nw}</td></tr>`;
                 }).join('');
-                return `<div class="spirit-section-head">${title}</div><div style="overflow-x:auto"><table class="spirit-table"><thead><tr><th style="text-align:left">Steward</th>${wkHdrs}<th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+                return `<div class="spirit-section-head">${title}</div>
+                    <div style="overflow-x:auto"><table class="spc-table" style="margin-bottom:20px">
+                        <thead><tr><th style="text-align:left;padding-left:12px">Steward</th>${wkHdrs}<th>Sum</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table></div>`;
             };
-            return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-green">🙏</div><div><h2>Spiritual Activities</h2><div class="subtitle">Weekly tracking</div></div></div>
-        ${mkTable('friday', 'Friday Departmental Meetings')}${mkTable('saturday', 'Saturday Online Prayers')}
-      </div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(5)">← Back</button><button class="btn btn-primary" onclick="goStep(7)">Next: Generate →</button></div>`;
+            return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-green">🙏</div><div><h2>Spiritual Activities</h2><div class="subtitle">Track Friday Physical & Saturday Online Attendance</div></div></div>
+                <div class="alert alert-info" style="margin-bottom:16px;font-size:11px">💡 Tap checkboxes to cycle: <strong style="color:var(--accent-green)">✓ Present</strong> → <strong style="color:var(--accent-red)">✗ Absent</strong> → unset. These contribute to the "Fellowship" scores.</div>
+                ${mkTable('friday', 'Friday Physical Fellowship')}${mkTable('saturday', 'Saturday Online Prayers')}
+            </div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(5)">← Back</button><button class="btn btn-primary" onclick="goStep(7)">Next: Meetings →</button></div>`;
+        }
+        function toggleSpirit(m, act, wi) {
+            const cur = state.spiritualActivities[m][act][wi] || '';
+            const next = cur === '' ? 'Y' : cur === 'Y' ? 'N' : '';
+            setSpiritActivity(m, act, wi, next);
         }
 
         // ══════════════════════════════════════════
-        // STEP 7 — GENERATE
+        // STEP 7 — MEETINGS
         // ══════════════════════════════════════════
         function renderStep7() {
-            const D = state.dieselPrice, P = state.petrolPrice, rehCPH = ceil10(2.5 * P), mo = MONTHS[state.month], yr = state.year;
-            let grandTotal = 0;
-            const weekBreakdown = state.weeks.map((wk, wi) => {
-                const mid = 12 * D * 2.5, sun = 12 * D * 4, reh = rehCPH * 3; let sub = mid + sun + reh;
-                wk.specials.forEach(ev => { const lph = ev.litresPerHour || 2.5, ft = ev.fuelType || 'petrol'; sub += ceil10(lph * (ft === 'diesel' ? D : P)) * (ev.hours || 3); });
-                grandTotal += sub;
-                return `<div class="week-cost-row"><span class="week-cost-label">Week ${wi + 1}</span><span class="week-cost-amt">₦${sub.toLocaleString()}</span></div>`;
-            }).join('');
-            const tableRows = state.weeks.map((wk, i) => `<tr><td>Week ${i + 1}</td><td>${fmtDisplay(wk.wednesday)}</td><td>${fmtDisplay(wk.sunday)}</td><td>${fmtDisplay(wk.rehDate)}</td><td>${wk.specials.filter(e => e.name).map(e => e.name).join(', ') || '—'}</td></tr>`).join('');
+            const mtgs = state.meetingMinutes || [];
+            const rows = mtgs.map((m, i) => `
+                <div class="glass" style="margin-bottom:12px;padding:16px;border-left:4px solid var(--gold)">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+                        <input type="text" value="${m.title || ''}" placeholder="Meeting Title" onchange="state.meetingMinutes[${i}].title=this.value;saveState()" style="font-weight:700;background:transparent;border:none;padding:0;font-size:15px;width:70%;color:var(--gold)">
+                        <input type="date" value="${m.date || ''}" onchange="state.meetingMinutes[${i}].date=this.value;saveState()" style="width:120px;font-size:11px">
+                    </div>
+                    <div class="form-group"><label class="field-label">Agenda (one per line)</label>
+                        <textarea onchange="state.meetingMinutes[${i}].agenda=this.value;saveState()" style="min-height:60px">${m.agenda || ''}</textarea></div>
+                    <div class="form-group" style="margin-top:10px"><label class="field-label">Minutes / Resolutions</label>
+                        <textarea onchange="state.meetingMinutes[${i}].minutes=this.value;saveState()" style="min-height:80px">${m.minutes || ''}</textarea></div>
+                    <button class="btn btn-outline" style="margin-top:10px;font-size:10px;padding:4px 8px;border-color:rgba(212,168,67,0.3)" onclick="rmItem('meetingMinutes',${i})">Remove Meeting</button>
+                </div>
+            `).join('');
+            return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">🤝</div><div><h2>Departmental Meetings</h2><div class="subtitle">Agenda and minutes for this month</div></div></div>
+                ${rows}
+                <div style="text-align:center;padding:10px"><button class="btn btn-primary" onclick="addItem('meetingMinutes')">+ Add Meeting</button></div>
+            </div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(6)">← Back</button><button class="btn btn-primary" onclick="goStep(8)">Next: Expenses →</button></div>`;
+        }
+
+        // ══════════════════════════════════════════
+        // STEP 8 — EXPENSES
+        // ══════════════════════════════════════════
+        function addExpense() {
+            state.expenses.push({ id: Date.now(), date: '', desc: '', type: 'expense', amount: 0 });
+            renderCurrent();
+        }
+        function removeExpense(id) {
+            state.expenses = state.expenses.filter(e => e.id !== id);
+            renderCurrent();
+            saveState();
+        }
+        function renderStep8() {
+            const rows = state.expenses.map((ex, i) => `
+                <div class="ex-row">
+                    <input type="date" value="${ex.date}" onchange="state.expenses[${i}].date=this.value;saveState()">
+                    <input type="text" value="${ex.desc}" placeholder="Description" onchange="state.expenses[${i}].desc=this.value;saveState()">
+                    <select onchange="state.expenses[${i}].type=this.value;saveState();renderCurrent()" class="${ex.type === 'expense' ? 'ex-type-exp' : 'ex-type-ref'}" style="border:none;background:transparent">
+                        <option value="expense" ${ex.type === 'expense' ? 'selected' : ''}>Expense 🚩</option>
+                        <option value="refund" ${ex.type === 'refund' ? 'selected' : ''}>Refund 📥</option>
+                    </select>
+                    <input type="number" value="${ex.amount}" placeholder="Amount" onchange="state.expenses[${i}].amount=parseFloat(this.value)||0;saveState();renderCurrent()">
+                    <button onclick="removeExpense(${ex.id})" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px">🗑️</button>
+                </div>
+            `).join('');
+            const totalExp = state.expenses.reduce((s, e) => s + (e.type === 'expense' ? e.amount : -e.amount), 0);
+            return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-gold">💳</div><div><h2>Departmental Expenses</h2><div class="subtitle">Track monthly spend and refund requests</div></div></div>
+                <div style="margin-bottom:16px">${state.expenses.length === 0 ? '<div class="alert alert-info" style="font-size:11px">No expenses recorded yet. click "Add Item" to start.</div>' : rows}</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-glass);border-radius:var(--radius-sm);border:1px dashed var(--border)">
+                    <button class="btn btn-outline" onclick="addExpense()">+ Add Item</button>
+                    <div style="text-align:right">
+                        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">Net Total Spent</div>
+                        <div style="font-size:22px;font-weight:800;color:var(--gold)">₦${totalExp.toLocaleString()}</div>
+                    </div>
+                </div>
+            </div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(7)">← Back</button><button class="btn btn-primary" onclick="goStep(9)">Next: Generate →</button></div>`;
+        }
+
+        // ══════════════════════════════════════════
+        // STEP 9 — GENERATE
+        // ══════════════════════════════════════════
+        function renderStep9() {
+            // ══════════════════════════════════════════
+            // STEP 7 — GENERATE
+            // ══════════════════════════════════════════
             return `<div class="gen-hero fade-in"><div class="month-chip">${mo.toUpperCase()} ${yr}</div><h2>Department Report Ready</h2><div class="gen-sub">All data compiled · Ready for download</div>
         <div class="gen-btns"><button class="btn btn-gen-excel" onclick="generateExcel()">📊 Download Budget (Excel)</button><button class="btn btn-gen-word" onclick="generateWord()">📄 Download Report (Word)</button></div></div>
       <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-gold">💰</div><div><h2>Budget Summary</h2></div></div>${weekBreakdown}
         <div style="display:flex;justify-content:space-between;padding:12px;background:linear-gradient(135deg,rgba(212,168,67,0.15),rgba(212,168,67,0.05));border-radius:var(--radius-sm);margin-top:8px;font-weight:700"><span>Grand Total</span><span style="color:var(--gold);font-size:18px">₦${grandTotal.toLocaleString()}</span></div></div>
       <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">📋</div><div><h2>Events Summary</h2></div></div>
         <table class="summary-table"><thead><tr><th>Week</th><th><span class="tag tag-d">D</span> Midweek</th><th><span class="tag tag-d">D</span> Sunday</th><th><span class="tag tag-p">P</span> Rehearsal</th><th>Specials</th></tr></thead><tbody>${tableRows}</tbody></table></div>
-      <div class="nav-row"><button class="btn btn-outline" onclick="goStep(6)">← Back</button><div></div></div>`;
+      <div class="nav-row"><button class="btn btn-outline" onclick="goStep(8)">← Back</button><div></div></div>`;
         }
 
         // ══════════════════════════════════════════
@@ -2251,7 +2462,7 @@
         function showAdminSummary() {
             const mo = MONTHS[state.month], yr = state.year, svcDates = getServiceDatesForRoster(), members = getActiveMembers(), D = state.dieselPrice, P = state.petrolPrice, rehCPH = ceil10(2.5 * P);
             let grandTotal = 0; state.weeks.forEach(wk => { grandTotal += 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3; wk.specials.forEach(ev => { const lph = ev.litresPerHour || 2.5, ft = ev.fuelType || 'petrol'; grandTotal += ceil10(lph * (ft === 'diesel' ? D : P)) * (ev.hours || 3); }); });
-            const perfRows = members.map(m => { const sc = calcMemberScore(m, svcDates), col = sc >= 80 ? 'sc-a' : sc >= 60 ? 'sc-b' : 'sc-c'; return `<tr><td style="padding:6px 10px;border-bottom:1px solid var(--border)">${m}</td><td style="padding:6px 10px;border-bottom:1px solid var(--border);text-align:center"><span class="${col}" style="font-weight:700">${sc}%</span></td></tr>`; }).join('');
+            const perfRows = members.map(m => { const res = calcMemberScore(m, svcDates), sc = res.aggregate, col = sc >= 80 ? 'sc-a' : sc >= 60 ? 'sc-b' : 'sc-c'; return `<tr><td style="padding:6px 10px;border-bottom:1px solid var(--border)">${m}</td><td style="padding:6px 10px;border-bottom:1px solid var(--border);text-align:center"><span class="${col}" style="font-weight:700">${sc}%</span></td></tr>`; }).join('');
             const logRows = svcDates.map(svc => {
                 const dk = dateKey(svc.date), att = state.memberAttendance[dk] || { locked: false, entries: {} }, isLocked = att.locked, presentCount = Object.values(att.entries).filter(e => e.present).length;
                 return `<div style="padding:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:12px;color:var(--gold)">${svc.label}</div><div style="font-size:11px;color:var(--text-dim)">Present: <strong>${presentCount}/${members.length}</strong></div></div>
@@ -2320,7 +2531,6 @@
             const goalsLi = state.goals.filter(g => g.trim()).map(g => `<li>${g}</li>`).join('') || '<li>[No goals]</li>';
             const serviceRows = state.weeks.map((wk, i) => `<tr><td>Week ${i + 1}</td><td>${fmtFull(wk.wednesday)}</td><td>${fmtFull(wk.sunday)}</td><td>${fmtFull(wk.rehDate)}</td><td>${wk.specials.filter(e => e.name).map(e => e.name).join(', ') || '—'}</td></tr>`).join('');
             const members = getActiveMembers(), svcDates = getServiceDatesForRoster();
-            let perfSection = ''; if (members.length > 0) { const perfRows = members.map(m => { const sc = calcMemberScore(m, svcDates); const col = sc >= 80 ? '#155724' : sc >= 60 ? '#856404' : '#842029'; const bg = sc >= 80 ? '#d4edda' : sc >= 60 ? '#fff3cd' : '#f8d7da'; return `<tr><td>${m}</td><td style="text-align:center"><strong style="color:${col};background:${bg};padding:2pt 6pt;border-radius:3pt">${sc}%</strong></td></tr>`; }).join(''); perfSection = `<h2>Steward Performance</h2><table><thead><tr><th>Steward</th><th>Score</th></tr></thead><tbody>${perfRows}</tbody></table>`; }
             let spiritSection = ''; if (members.length > 0) { const nw = state.weeks.length || 5; const spiritRows = members.map(m => { const fr = (state.spiritualActivities[m]?.friday || []).filter(v => v === 'Y').length; const sa = (state.spiritualActivities[m]?.saturday || []).filter(v => v === 'Y').length; return `<tr><td>${m}</td><td style="text-align:center">${fr}/${nw}</td><td style="text-align:center">${sa}/${nw}</td></tr>`; }).join(''); spiritSection = `<h2>Spiritual Activities</h2><table><thead><tr><th>Steward</th><th>Friday (${nw} wks)</th><th>Saturday (${nw} wks)</th></tr></thead><tbody>${spiritRows}</tbody></table>`; }
             let rosterSection = ''; if (state.roles && state.roles.some(r => r.primary)) { const rRows = state.roles.map(r => `<tr><td><strong>${r.code}</strong></td><td>${r.name}</td><td>${r.primary || '—'}</td><td>${r.alt1 || '—'}</td><td>${r.alt2 || '—'}</td></tr>`).join(''); rosterSection = `<h2>Roster</h2><table><thead><tr><th>Code</th><th>Role</th><th>Primary</th><th>Alt 1</th><th>Alt 2</th></tr></thead><tbody>${rRows}</tbody></table>`; }
             // Service Report section
@@ -2340,42 +2550,66 @@
                 }).join('');
                 return `<h2>Service-by-Service Report</h2><table class="wide-table"><thead><tr><th style="width:18%">Service</th><th style="width:28%">Attendance &amp; Tasks</th><th style="width:18%">Issues</th><th style="width:18%">Recommendations</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>`;
             })();
-            // Meeting Minutes section
+            // Performance Section
+            const perfSection = (() => {
+                if (members.length === 0) return '';
+                const perfRows = members.map(m => {
+                    const r = calcMemberScore(m, svcDates);
+                    const col = r.aggregate >= 80 ? '#155724' : r.aggregate >= 60 ? '#856404' : '#842029';
+                    const bg = r.aggregate >= 80 ? '#d4edda' : r.aggregate >= 60 ? '#fff3cd' : '#f8d7da';
+                    return `<tr>
+                        <td>${m}</td>
+                        <td style="text-align:center">${r.punc}</td>
+                        <td style="text-align:center">${r.dress}</td>
+                        <td style="text-align:center">${r.physical}</td>
+                        <td style="text-align:center">${r.online}</td>
+                        <td style="text-align:center">${r.duty}</td>
+                        <td style="text-align:center"><strong style="color:${col};background:${bg};padding:2pt 6pt;border-radius:3pt">${r.aggregate}%</strong></td>
+                    </tr>`;
+                }).join('');
+                return `<h2>Steward Performance Card (SPC) 100%</h2><table class="wide-table"><thead><tr><th>Names</th><th style="text-align:center">Punc</th><th style="text-align:center">Dress</th><th style="text-align:center">Phys</th><th style="text-align:center">Onl</th><th style="text-align:center">Duty</th><th style="text-align:center">Agg.</th></tr></thead><tbody>${perfRows}</tbody></table>`;
+            })();
+            // Expense Section
+            const expenseSection = (() => {
+                if (state.expenses.length === 0) return '';
+                const rows = state.expenses.map(ex => `<tr><td>${ex.date}</td><td>${ex.desc}</td><td>${ex.type.toUpperCase()}</td><td style="text-align:right">₦${ex.amount.toLocaleString()}</td></tr>`).join('');
+                const total = state.expenses.reduce((s, e) => s + (e.type === 'expense' ? e.amount : -e.amount), 0);
+                return `<h2>Departmental Expense Report</h2><table class="wide-table"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th style="text-align:right">Amount</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th colspan="3" style="text-align:right">Net Total</th><th style="text-align:right">₦${total.toLocaleString()}</th></tr></tfoot></table>`;
+            })();
             const meetingsSection = (() => {
                 const mtgs = state.meetingMinutes || [];
                 if (mtgs.length === 0) return '';
                 const mtgHtml = mtgs.map((mtg, i) => {
                     const agendaItems = (mtg.agenda || '').split('\n').filter(l => l.trim()).map(l => `<li>${l}</li>`).join('');
-                    return `<div style="margin-bottom:14pt"><p style="font-weight:bold;margin-bottom:4pt">${mtg.date ? fmtFull(new Date(mtg.date)) : 'Meeting ' + (i + 1)}</p>${agendaItems ? `<p style="font-weight:bold;margin-top:8pt">Agenda</p><ul>${agendaItems}</ul>` : ''}<p style="font-weight:bold;margin-top:8pt">Minutes</p><p>${(mtg.minutes || '—').split('\n').join('<br>')}</p></div>`;
-                }).join('<hr style="margin:12pt 0">');
-                return `<h2>Departmental Meeting Minutes</h2>${mtgHtml}`;
+                    const minuteItems = (mtg.minutes || '').split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+                    return `<h3>${mtg.title || `Meeting ${i + 1}`} — ${mtg.date || ''}</h3><p><strong>Agenda:</strong></p><ul>${agendaItems}</ul><p><strong>Minutes:</strong></p>${minuteItems}`;
+                }).join('');
+                return `<h2>Meetings & Minutes</h2>${mtgHtml}`;
             })();
-            const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Circuit Dept Report ${mo} ${yr}</title><style>
-@page { margin: 0.9cm 0.9cm 0.9cm 0.9cm }
-body{font-family:Calibri,sans-serif;font-size:11pt;margin:0;line-height:1.4;color:#111}
-.church{text-align:center;font-size:16pt;font-weight:bold;text-transform:uppercase;margin-bottom:3pt}
-.dept-title{text-align:center;font-size:12pt;margin-bottom:3pt}
-.report-month{text-align:center;font-size:13pt;font-weight:bold;margin-bottom:16pt}
-h2{font-size:11pt;font-weight:bold;text-transform:uppercase;border-bottom:2px solid #0f1f3d;padding-bottom:2pt;margin:14pt 0 6pt;color:#0f1f3d}
-p{margin:0 0 6pt}
-ul{margin:0 0 6pt 20pt}
-li{margin-bottom:3pt}
-table{width:100%;border-collapse:collapse;margin:6pt 0;font-size:10pt;table-layout:fixed;word-wrap:break-word}
-th{background:#0f1f3d;color:white;padding:5pt 6pt;text-align:left;font-size:9pt;word-wrap:break-word}
-td{border:1pt solid #ccc;padding:4pt 6pt;word-wrap:break-word;overflow-wrap:break-word}
-tr:nth-child(even) td{background:#f7f7f7}
-.total-row td{font-weight:bold;background:#fffbeb!important}
-.wide-table{font-size:9pt}
-.wide-table th,.wide-table td{padding:3pt 4pt}
-</style></head><body>
-          <div class="church">NEW REALITY CHRISTIAN CENTRE</div><div class="dept-title">ADO-EKITI CAMPUS</div><div class="report-month">CIRCUIT DEPARTMENT REPORT — ${mo.toUpperCase()} ${yr}</div>
-          <h2>Introduction</h2><p>The Circuit department is a service of the Church, primarily responsible for providing technical support. The Circuit provides service to every other department, ensuring a successful light and sound experience for the congregation during services and events.</p>
-          <h2>Departmental Members</h2><ul>${membersLi}</ul>
-          <h2>Goals for ${mo} ${yr}</h2><ul>${goalsLi}</ul>
-          <h2>Services & Events</h2><table class="wide-table"><thead><tr><th style="width:8%">Wk</th><th>Midweek</th><th>Sunday</th><th>Rehearsal</th><th>Specials</th></tr></thead><tbody>${serviceRows}</tbody></table>
-          ${rosterSection}${perfSection}${spiritSection}${svcLogSection}${meetingsSection}
-          <h2>Financial Details</h2><table><thead><tr><th>Account</th><th>Balance</th></tr></thead><tbody><tr><td>Seed Account</td><td>₦${state.seedBalance || '_____'}</td></tr><tr><td>Budget Account</td><td>₦${state.budgetBalance || '_____'}</td></tr><tr class="total-row"><td>Budgeted Total</td><td>₦${grandTotal.toLocaleString()}</td></tr></tbody></table>
-          <p style="font-style:italic;color:#555;font-size:10pt">Note: Diesel ₦${D.toLocaleString()}/ltr · Petrol ₦${P.toLocaleString()}/ltr.</p><br><p>Prepared by: ___________________&nbsp;&nbsp;&nbsp;&nbsp;Date: ___________________</p></body></html>`;
+            const html = `<html><head><meta charset="UTF-8"><style>
+                body { font-family: 'Calibri', 'Inter', sans-serif; font-size: 11pt; line-height: 1.3; color: #333; }
+                h1 { color: #1a2a4a; font-size: 18pt; margin-bottom: 4pt; border-bottom: 2pt solid #d4a843; }
+                h2 { color: #1a3260; font-size: 14pt; margin-top: 18pt; margin-bottom: 8pt; border-left: 4pt solid #d4a843; padding-left: 8pt; }
+                h3 { font-size: 12pt; color: #444; margin-top: 10pt; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 12pt; table-layout: fixed; }
+                th, td { border: 1px solid #ddd; padding: 6pt; font-size: 10pt; word-wrap: break-word; vertical-align: top; }
+                th { background: #f8f9fa; font-weight: bold; text-align: left; }
+                .wide-table th, .wide-table td { font-size: 9pt; padding: 4pt; }
+                .footer { font-size: 9pt; color: #777; margin-top: 30pt; border-top: 1px solid #ddd; padding-top: 10pt; }
+                @page { margin: 0.9cm; }
+            </style></head><body>
+                <h1>CIRCUIT DEPARTMENTAL MONTHLY REPORT</h1>
+                <p style="font-size:12pt"><strong>${mo.toUpperCase()} ${yr}</strong> — ${state.teamMembers.length} Stewards active</p>
+                <div style="margin-top:20pt">
+                    <h2>Budget Overview</h2>
+                    <p>Departmental Budget: <strong>₦${grandTotal.toLocaleString()}</strong></p>
+                    <p>Seed Balance: <strong>₦${state.seedBalance || '0'}</strong></p>
+                    <p>Budget Account Balance: <strong>₦${state.budgetBalance || '0'}</strong></p>
+                </div>
+                <div><h2>Departmental Goals</h2><ul>${goalsLi}</ul></div>
+                ${perfSection}${spiritSection}${expenseSection}${rosterSection}${svcLogSection}${meetingsSection}
+                <div class="footer"><p>Generated on ${new Date().toLocaleDateString()} · NRCC Circuit Department Hub</p></div>
+            </body></html>`;
             const blob = new Blob([html], { type: 'application/msword' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `NRCC Circuit Report - ${mo} ${yr}.doc`; a.click(); URL.revokeObjectURL(url);
         }
 
@@ -2389,9 +2623,9 @@ tr:nth-child(even) td{background:#f7f7f7}
             let totalPresent = 0, totalPossible = 0;
             svcDates.forEach(svc => { const dk = dateKey(svc.date), att = state.memberAttendance[dk] || { entries: {} }; totalPresent += Object.values(att.entries).filter(e => e.present).length; totalPossible += members.length; });
             const attPct = totalPossible > 0 ? Math.round((totalPresent / totalPossible) * 100) : 0;
-            const avgScore = members.length > 0 ? Math.round(members.reduce((s, m) => s + calcMemberScore(m, svcDates), 0) / members.length) : 0;
+            const avgScore = members.length > 0 ? Math.round(members.reduce((s, m) => s + calcMemberScore(m, svcDates).aggregate, 0) / members.length) : 0;
 
-            const scorecards = members.map(m => { const sc = calcMemberScore(m, svcDates); const c = sc >= 80 ? 'sc-a' : sc >= 60 ? 'sc-b' : 'sc-c'; return `<div class="score-card"><div class="sc-name">${m.split(' ')[0]}</div><div class="sc-score ${c}">${sc}%</div><div class="sc-label">Performance</div></div>`; }).join('');
+            const scorecards = members.map(m => { const res = calcMemberScore(m, svcDates); const sc = res.aggregate; const c = sc >= 80 ? 'sc-a' : sc >= 60 ? 'sc-b' : 'sc-c'; return `<div class="score-card"><div class="sc-name">${m.split(' ')[0]}</div><div class="sc-score ${c}">${sc}%</div><div class="sc-label">Performance</div></div>`; }).join('');
 
             const commentsHtml = (state.ministerComments || []).map(c => `<div class="comment-bubble ${c.from}"><div>${c.text}</div><div class="comment-meta">${c.from === 'minister' ? '👑 Minister' : '🔧 Admin'} · ${new Date(c.time).toLocaleString()}</div></div>`).join('') || '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:12px">No comments yet</div>';
 
@@ -2447,10 +2681,15 @@ tr:nth-child(even) td{background:#f7f7f7}
                 adminBtn.innerHTML = '🔓 Logout'; adminBtn.className = 'g-btn';
                 const sidebarHtml = STEP_DEFS.map(s => `<div class="sidebar-item ${state.step === s.n ? 'active' : ''}" onclick="goStep(${s.n})"><span class="si-icon">${s.icon}</span><span>${s.label}</span></div>`).join('');
                 let stepHtml = '';
-                if (state.step === 1) stepHtml = renderStep1(); else if (state.step === 2) stepHtml = renderStep2();
-                else if (state.step === 3) stepHtml = renderStep3(); else if (state.step === 4) stepHtml = renderStep4();
-                else if (state.step === 5) stepHtml = renderStep5(); else if (state.step === 6) stepHtml = renderStep6();
-                else if (state.step === 7) stepHtml = renderStep7(); else if (state.step === 8) stepHtml = renderStep8();
+                if (state.step === 1) stepHtml = renderStep1();
+                else if (state.step === 2) stepHtml = renderStep2();
+                else if (state.step === 3) stepHtml = renderStep3();
+                else if (state.step === 4) stepHtml = renderStep4();
+                else if (state.step === 5) stepHtml = renderStep5();
+                else if (state.step === 6) stepHtml = renderStep6();
+                else if (state.step === 7) stepHtml = renderStep7();
+                else if (state.step === 8) stepHtml = renderStep8();
+                else if (state.step === 9) stepHtml = renderStep9();
                 root.innerHTML = `<div class="app-layout"><div class="sidebar slide-in">
               <div class="sidebar-label">Admin Portal</div>${sidebarHtml}
               <div class="sidebar-label" style="margin-top:20px">Tools</div>
