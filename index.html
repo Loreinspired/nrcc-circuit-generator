@@ -430,22 +430,83 @@
     /* ── LIST ITEMS (goals, team) ── */
     .list-item {
       display: flex;
-      gap: 8px;
+      gap: 12px;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
+      padding: 12px;
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      transition: all 0.2s ease;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .list-item:hover {
+      border-color: var(--navy-light);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(15, 31, 61, 0.08);
     }
 
     .list-item input {
       flex: 1;
+      border: none;
+      background: transparent;
+      font-weight: 500;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .list-item input:focus {
+      outline: none;
     }
 
     .list-num {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-light);
-      width: 20px;
-      text-align: right;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--gold);
+      width: 24px;
+      text-align: center;
       flex-shrink: 0;
+      opacity: 0.8;
+    }
+
+    .service-badge {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-sunday {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .badge-midweek {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-other {
+      background: #f3f4f6;
+      color: #4b5563;
+    }
+
+    /* ── CHECK-IN MODE ── */
+    .checking-in .app-header,
+    .checking-in .steps-bar {
+      display: none !important;
+    }
+
+    .checking-in .container {
+      max-width: 500px;
+      padding-top: 60px;
+    }
+
+    .checking-in .card {
+      border-top: 4px solid var(--gold);
     }
 
     /* ── BUTTONS ── */
@@ -1387,18 +1448,48 @@
       return dates.filter(d => d.date).sort((a, b) => new Date(a.date) - new Date(b.date));
     }
     function calcMemberScore(member, svcDates) {
+      // Filter for Service Days Only (Sundays and Mid-weeks)
+      const serviceOnly = svcDates.filter(s => s.label.toLowerCase().includes('sunday') || s.label.toLowerCase().includes('mid-week'));
       let total = 0, possible = 0;
-      svcDates.forEach(svc => {
+      serviceOnly.forEach(svc => {
         const dk = dateKey(svc.date);
-        const p = state.servicePerformance[member]?.[dk];
-        if (!p) return;
-        if (p.onTime) { possible++; if (p.onTime === 'Y') total++; }
-        if (p.dressCode) { possible++; if (p.dressCode === 'Y') total++; }
-        if (p.attended) { possible++; if (p.attended === 'Y') total++; }
+        const p = state.servicePerformance[member]?.[dk] || {};
+        const att = (state.memberAttendance[dk]?.entries || {})[member] || {};
+
+        // Use memberAttendance if present, else fallback to servicePerformance
+        const isPresent = att.present ?? (p.attended === 'Y');
+        const arrival = att.arrivalTime || '';
+
+        possible += 3; // OnTime, Dress, Attended
+        if (isPresent) total++; // Attended
+
+        // Arrival Time Logic
+        let onTimeStatus = p.onTime;
+        if (arrival) {
+          const [h, m] = arrival.split(':').map(Number);
+          const val = h * (m ? 60 : 1) + (m || 0); // handle H:MM or just H
+          const isSunday = svc.label.toLowerCase().includes('sunday');
+          if (isSunday) {
+            if (val <= 7 * 60 + 10) onTimeStatus = 'Ideal';
+            else if (val <= 7 * 60 + 20) onTimeStatus = 'Y';
+            else onTimeStatus = 'N';
+          } else {
+            // Midweek - based on 18:00 start
+            if (val <= 17 * 60) onTimeStatus = 'Ideal';
+            else if (val <= 17 * 60 + 30) onTimeStatus = 'Y';
+            else onTimeStatus = 'N';
+          }
+        }
+        if (onTimeStatus === 'Ideal') total += 1.25; // Bonus for early
+        else if (onTimeStatus === 'Y') total += 1;
+
+        if (p.dressCode === 'Y') total++;
+
+        // Tasks & Verified (optional/extra)
         if (p.tasksDone) { possible++; total += p.tasksDone === 'All' ? 1 : p.tasksDone === 'Most' ? .75 : p.tasksDone === 'Some' ? .5 : 0; }
         if (p.verified) { possible++; total += p.verified === 'All' ? 1 : p.verified === 'Most' ? .75 : p.verified === 'Some' ? .5 : 0; }
       });
-      return possible === 0 ? 0 : Math.round((total / possible) * 100);
+      return possible === 0 ? 0 : Math.min(100, Math.round((total / possible) * 100));
     }
 
     // ══════════════════════════════════════════
@@ -1437,7 +1528,8 @@
       spiritualActivities: {},
       adminPin: 'Circuit25',
       memberAttendance: {},
-      bioData: []
+      bioData: [],
+      whatsappGroup: ''
     };
     function loadState() {
       try {
@@ -1452,6 +1544,7 @@
           if (!parsed.adminPin) parsed.adminPin = 'Circuit25';
           if (!parsed.memberAttendance) parsed.memberAttendance = {};
           if (!parsed.bioData) parsed.bioData = [];
+          if (parsed.whatsappGroup === undefined) parsed.whatsappGroup = '';
           return parsed;
         }
       } catch (e) { }
@@ -1719,17 +1812,17 @@
     function renderStep3() {
       const teamHtml = state.teamMembers.map((m, i) => `
     <div class="list-item">
-      <span class="list-num">${i + 1}.</span>
-      <input type="text" value="${m}" placeholder="Name — Role (e.g. John Adeyemi — Sound)"
-        onchange="state.teamMembers[${i}]=this.value">
+      <span class="list-num">${i + 1}</span>
+      <input type="text" value="${m}" placeholder="Member Name (e.g. John Adeyemi)"
+        onchange="state.teamMembers[${i}]=this.value;saveState()">
       <button class="btn btn-icon" onclick="rmItem('teamMembers',${i})">✕</button>
     </div>`).join('');
 
       const goalsHtml = state.goals.map((g, i) => `
     <div class="list-item">
-      <span class="list-num">${i + 1}.</span>
-      <input type="text" value="${g}" placeholder="Goal..."
-        onchange="state.goals[${i}]=this.value">
+      <span class="list-num">${i + 1}</span>
+      <input type="text" value="${g}" placeholder="Dept. Goal (e.g. Listen to weekly messages)"
+        onchange="state.goals[${i}]=this.value;saveState()">
       <button class="btn btn-icon" onclick="rmItem('goals',${i})">✕</button>
     </div>`).join('');
 
@@ -1739,7 +1832,7 @@
       <div class="card-icon">👥</div>
       <div><h2>Team Members</h2><div class="card-subtitle">Current serving members of the Circuit dept.</div></div>
     </div>
-    ${teamHtml}
+    <div style="margin-bottom:12px">${teamHtml}</div>
     <button class="btn btn-ghost-add" onclick="addItem('teamMembers')">+ Add team member</button>
   </div>
 
@@ -1748,8 +1841,20 @@
       <div class="card-icon">🎯</div>
       <div><h2>Departmental Goals — ${MONTHS[state.month]}</h2><div class="card-subtitle">Goals set for this month</div></div>
     </div>
-    ${goalsHtml}
+    <div style="margin-bottom:12px">${goalsHtml}</div>
     <button class="btn btn-ghost-add" onclick="addItem('goals')">+ Add goal</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📱</div>
+      <div><h2>WhatsApp Integration</h2><div class="card-subtitle">Group link for sharing service updates and check-ins</div></div>
+    </div>
+    <div class="form-group">
+      <label class="field-label">WhatsApp Group Link / Number</label>
+      <input type="text" value="${state.whatsappGroup || ''}" placeholder="e.g. https://chat.whatsapp.com/..." 
+        onchange="state.whatsappGroup=this.value;saveState()">
+    </div>
   </div>
 
   <div class="card">
@@ -1790,35 +1895,35 @@
     // ══════════════════════════════════════════
     function renderStep4() {
       const members = getActiveMembers();
-      const mo = `${MONTHS[state.month]} ${state.year}`;
-      const memberOpts = (sel) => `<option value="">— Assign —</option>` +
-        members.map(m => `<option value="${m}"${m === sel ? ' selected' : ''}>${m}</option>`).join('');
-      const rolesHtml = state.roles.map((r, ri) => `<tr>
+      const mo = `${MONTHS[state.month]} ${state.year} `;
+      const memberOpts = (sel) => `< option value = "" >— Assign —</option > ` +
+        members.map(m => `< option value = "${m}"${m === sel ? ' selected' : ''}> ${m}</option > `).join('');
+      const rolesHtml = state.roles.map((r, ri) => `< tr >
         <td><span class="role-badge">${r.code}</span></td>
         <td><input type="text" value="${r.name}" style="padding:5px 8px;font-size:12px" onchange="state.roles[${ri}].name=this.value;saveState()"></td>
         <td><select onchange="state.roles[${ri}].primary=this.value;saveState()">${memberOpts(r.primary)}</select></td>
         <td><select onchange="state.roles[${ri}].alt1=this.value;saveState()">${memberOpts(r.alt1)}</select></td>
         <td><select onchange="state.roles[${ri}].alt2=this.value;saveState()">${memberOpts(r.alt2)}</select></td>
-      </tr>`).join('');
+      </tr > `).join('');
       const svcDates = getServiceDatesForRoster();
-      const roleHdrs = state.roles.map(r => `<th>${r.code}</th>`).join('');
+      const roleHdrs = state.roles.map(r => `< th > ${r.code}</th > `).join('');
       const assignHtml = svcDates.map(svc => {
         const dk = dateKey(svc.date);
         if (!state.serviceAssignments[dk]) state.serviceAssignments[dk] = {};
         const cols = state.roles.map((r, ri) => {
           const assigned = state.serviceAssignments[dk][r.code] || '';
-          return `<td><select style="font-size:11px;padding:4px 6px" onchange="state.serviceAssignments['${dk}']['${r.code}']=this.value;saveState()">${memberOpts(assigned)}</select></td>`;
+          return `< td > <select style="font-size:11px;padding:4px 6px" onchange="state.serviceAssignments['${dk}']['${r.code}']=this.value;saveState()">${memberOpts(assigned)}</select></td > `;
         }).join('');
-        return `<tr><td style="white-space:nowrap;font-size:12px;font-weight:600">${svc.label}</td>${cols}</tr>`;
+        return `< tr > <td style="white-space:nowrap;font-size:12px;font-weight:600">${svc.label}</td>${cols}</tr > `;
       }).join('');
       return `
-  <div class="card">
+        < div class="card" >
     <div class="card-header"><div class="card-icon">📋</div><div><h2>Role Definitions</h2><div class="card-subtitle">Set Primary and Alternates for each role</div></div></div>
     <div style="overflow-x:auto"><table class="roster-grid">
       <thead><tr><th>Code</th><th>Role Name</th><th>Primary</th><th>Alternate 1</th><th>Alternate 2</th></tr></thead>
       <tbody>${rolesHtml}</tbody>
     </table></div>
-  </div>
+  </div >
   <div class="card">
     <div class="card-header"><div class="card-icon">🗓️</div><div><h2>Service Assignments — ${mo}</h2><div class="card-subtitle">Who fills each role per service date</div></div></div>
     ${svcDates.length === 0 ? '<div class="alert alert-info">Complete Step 2 (Weekly Events) first to see service dates here.</div>' : ''}
@@ -1836,7 +1941,7 @@
     function renderStep5() {
       const members = getActiveMembers();
       const svcDates = getServiceDatesForRoster();
-      if (members.length === 0) return `<div class="card"><div class="alert alert-warn">Add team members in Step 3 first.</div></div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(4)">← Back</button></div>`;
+      if (members.length === 0) return `< div class="card" > <div class="alert alert-warn">Add team members in Step 3 first.</div></div > <div class="nav-row"><button class="btn btn-outline" onclick="goStep(4)">← Back</button></div>`;
       members.forEach(m => {
         if (!state.servicePerformance[m]) state.servicePerformance[m] = {};
         svcDates.forEach(svc => {
@@ -1844,7 +1949,7 @@
           if (!state.servicePerformance[m][dk]) state.servicePerformance[m][dk] = { onTime: '', dressCode: '', attended: '', tasksDone: '', verified: '' };
         });
       });
-      const yn = (m, dk, f) => { const v = state.servicePerformance[m]?.[dk]?.[f] || ''; return `<select style="width:50px;font-size:11px;padding:2px 3px" onchange="setPerf('${m.replace(/'/g, "\\'")}','${dk}','${f}',this.value)"><option value=""${v === '' ? ' selected' : ''}>—</option><option value="Y"${v === 'Y' ? ' selected' : ''}>Y</option><option value="N"${v === 'N' ? ' selected' : ''}>N</option></select>`; };
+      const yn = (m, dk, f) => { const v = state.servicePerformance[m]?.[dk]?.[f] || ''; return `< select style = "width:50px;font-size:11px;padding:2px 3px" onchange = "setPerf('${m.replace(/'/g, "\\'")}', '${dk}', '${f}', this.value) "><option value=""${v === '' ? ' selected' : ''}>—</option><option value="Y"${v === 'Y' ? ' selected' : ''}>Y</option><option value="N"${v === 'N' ? ' selected' : ''}>N</option></select>`; };
       const amns = (m, dk, f) => { const v = state.servicePerformance[m]?.[dk]?.[f] || ''; return `<select style="width:58px;font-size:11px;padding:2px 3px" onchange="setPerf('${m.replace(/'/g, "\\'")}','${dk}','${f}',this.value)"><option value=""${v === '' ? ' selected' : ''}>—</option><option value="All"${v === 'All' ? ' selected' : ''}>All</option><option value="Most"${v === 'Most' ? ' selected' : ''}>Most</option><option value="Some"${v === 'Some' ? ' selected' : ''}>Some</option><option value="None"${v === 'None' ? ' selected' : ''}>None</option></select>`; };
       const dateHeaders = svcDates.map(s => `<th colspan="5" style="border-left:2px solid rgba(255,255,255,.3)">${fmtDisplay(s.date)}<span class="date-hdr-sub">${s.label.split('—')[0].trim()}</span></th>`).join('');
       const subHeaders = svcDates.map(() => `<th>Time</th><th>Dress</th><th>Attend</th><th>Tasks</th><th>Verified</th>`).join('');
@@ -2280,6 +2385,10 @@ ${spiritSection}
                 style="background:${entry.present ? 'var(--success)' : '#eee'};color:${entry.present ? '#fff' : '#666'};border:none;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
                 ${entry.present ? 'Present' : 'Absent'}
               </button>
+              <button onclick="shareAttendanceToWhatsApp('${m.replace(/'/g, "\\'")}','${dk}')"
+                style="background:#25D366;color:#fff;border:none;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer" title="Share your check-in to WhatsApp">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.149-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+              </button>
             </div>`;
         }).join('');
 
@@ -2304,20 +2413,48 @@ ${spiritSection}
       state.memberAttendance[dk].entries[name][field] = val;
 
       // Auto-sync to performance state
-      if (field === 'arrivalTime') {
-        const isMidweek = dk.includes(',');
+      if (field === 'arrivalTime' && val) {
         if (!state.servicePerformance[name]) state.servicePerformance[name] = {};
         if (!state.servicePerformance[name][dk]) state.servicePerformance[name][dk] = {};
-        if (val && !state.memberAttendance[dk].entries[name].present) {
+
+        // Auto-mark present if time is entered
+        if (!state.memberAttendance[dk].entries[name].present) {
           state.memberAttendance[dk].entries[name].present = true;
           state.servicePerformance[name][dk].attended = 'Y';
         }
-        const limit = dk.includes('Sun') ? "08:30" : "17:30";
-        if (val && val <= limit) state.servicePerformance[name][dk].onTime = 'Y';
-        else if (val) state.servicePerformance[name][dk].onTime = 'N';
+
+        // Specific Timing Logic
+        const [h, m] = val.split(':').map(Number);
+        const mins = h * 60 + (m || 0);
+        const isSun = dk.includes('Sun');
+        const isMid = dk.includes('Mid-Week') || dk.includes('Midweek');
+
+        if (isSun) {
+          if (mins <= 7 * 60 + 10) state.servicePerformance[name][dk].onTime = 'Ideal';
+          else if (mins <= 7 * 60 + 20) state.servicePerformance[name][dk].onTime = 'Y';
+          else state.servicePerformance[name][dk].onTime = 'N';
+        } else if (isMid) {
+          if (mins <= 17 * 60) state.servicePerformance[name][dk].onTime = 'Ideal';
+          else if (mins <= 17 * 60 + 30) state.servicePerformance[name][dk].onTime = 'Y';
+          else state.servicePerformance[name][dk].onTime = 'N';
+        } else {
+          state.servicePerformance[name][dk].onTime = 'Y'; // Default for other events
+        }
       }
       saveState();
       renderDrawer();
+    }
+
+    function shareAttendanceToWhatsApp(member, dateKey) {
+      if (!state.whatsappGroup) { alert('Go to Step 3 to set your WhatsApp Group Link!'); goStep(3); return; }
+      const att = (state.memberAttendance[dateKey]?.entries || {})[member] || {};
+      if (!att.arrivalTime) { alert('Enter arrival time first.'); return; }
+
+      const msg = `📋 *NRCC Check-in*%0A👤 *Member:* ${member}%0A📅 *Service:* ${dateKey}%0A⏰ *Arrival:* ${att.arrivalTime}%0A%0A_Sent via NRCC Generator v4.5_`;
+      const url = state.whatsappGroup.startsWith('http') ?
+        `${state.whatsappGroup}${state.whatsappGroup.includes('?') ? '&' : '?'}text=${msg}` :
+        `https://wa.me/${state.whatsappGroup.replace(/\D/g, '')}?text=${msg}`;
+      window.open(url, '_blank');
     }
     function togglePresent(dk, name) {
       if (!state.memberAttendance[dk]) state.memberAttendance[dk] = { locked: false, entries: {} };
@@ -2463,10 +2600,59 @@ ${spiritSection}
         <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px"><tbody>${perfRows}</tbody></table>` : ''}
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-light);margin-bottom:8px">Service Controls</div>
         <div style="background:var(--cream);border-radius:10px;overflow:hidden;margin-bottom:14px">${logRows || '<div style="padding:12px;font-size:12px;color:var(--text-light);text-align:center">No service dates yet</div>'}</div>
+        
+        <div style="background:#fff;border:1.5px dashed var(--border);border-radius:12px;padding:14px;margin-bottom:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:6px;text-transform:uppercase">📲 WhatsApp Batch Import</div>
+          <div style="font-size:10px;color:var(--text-light);margin-bottom:8px">Paste check-in messages from the group chat here to sync them instantly.</div>
+          <textarea id="batchInput" placeholder="Paste messages here..." style="width:100%;height:60px;font-size:11px;padding:8px;border-radius:6px;border:1px solid #ddd;margin-bottom:8px;font-family:monospace"></textarea>
+          <button onclick="batchImportAttendance()" style="width:100%;background:var(--gold);color:var(--navy);border:none;padding:8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">Update Log from Text</button>
+        </div>
+
         <div style="display:flex;gap:8px">
           <button onclick="renderDrawer()" style="flex:1;background:var(--navy);color:#fff;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">&#8592; Back to Log</button>
           <button onclick="changePin()" style="flex:1;background:var(--cream);color:var(--text);border:1.5px solid var(--border);padding:10px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">&#128273; Change PIN</button>
         </div>`;
+    }
+
+    function batchImportAttendance() {
+      const text = document.getElementById('batchInput').value;
+      if (!text) return;
+
+      const lines = text.split('\n');
+      let member = '', date = '', time = '';
+      let count = 0;
+
+      // Extract details from formatted messages
+      text.split('📋 *NRCC Check-in*').forEach(block => {
+        if (!block.trim()) return;
+        const mMatch = block.match(/Member:\s*([^\n\*]+)/i);
+        const dMatch = block.match(/Service:\s*([^\n\*]+)/i);
+        const tMatch = block.match(/Arrival:\s*([\d:]+)/i);
+
+        if (mMatch && dMatch && tMatch) {
+          const mName = mMatch[1].trim();
+          const dKey = dMatch[1].trim();
+          const aTime = tMatch[1].trim();
+
+          // Match the date key exactly or by label
+          const svcDates = getServiceDatesForRoster();
+          const targetSvc = svcDates.find(s => s.label.includes(dKey) || dKey.includes(s.label));
+
+          if (targetSvc) {
+            const dk = dateKey(targetSvc.date);
+            saveAttendance(dk, mName, 'arrivalTime', aTime);
+            count++;
+          }
+        }
+      });
+
+      if (count > 0) {
+        showToast(`Imported ${count} check-ins \u2713`);
+        document.getElementById('batchInput').value = '';
+        showAdminSummary();
+      } else {
+        alert('Could not find any valid check-in messages in the text.');
+      }
     }
     function changePin() {
       const np = prompt('Enter new 4-digit PIN:');
