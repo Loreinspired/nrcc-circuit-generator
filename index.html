@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NRCC Circuit</title>
+    <title>NRCC Circuit V2</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1934,6 +1934,25 @@
         // FIREBASE
         // ══════════════════════════════════════════
         let db = null, isSyncing = false;
+        // Fields that are local to each device and should NEVER be synced
+        const LOCAL_ONLY_KEYS = ['step', 'currentView', 'isAdminMode', 'firebaseConfig', 'jsonbinKey', 'jsonbinId'];
+
+        function stripLocalFields(obj) {
+            const clean = JSON.parse(JSON.stringify(obj));
+            LOCAL_ONLY_KEYS.forEach(k => delete clean[k]);
+            return clean;
+        }
+
+        function mergeRemoteData(remote) {
+            // Save local-only state before merging
+            const localState = {};
+            LOCAL_ONLY_KEYS.forEach(k => { if (state[k] !== undefined) localState[k] = state[k]; });
+            // Merge remote data
+            Object.assign(state, remote);
+            // Restore local-only state so navigation isn't affected
+            Object.assign(state, localState);
+        }
+
         function initFirebase() {
             if (!state.firebaseConfig) return;
             try {
@@ -1943,7 +1962,12 @@
                 db.ref('nrcc_v5').on('value', snap => {
                     if (isSyncing) return;
                     const r = snap.val();
-                    if (r) { Object.assign(state, r); renderCurrent(); showToast('🔄 Synced'); }
+                    if (r) {
+                        mergeRemoteData(r);
+                        localStorage.setItem('nrcc_circuit_state', JSON.stringify(state));
+                        renderCurrent();
+                        showToast('🔄 Synced');
+                    }
                 });
             } catch (e) { console.error(e); setSyncStatus('error', 'Sync Error — Check DB Rules'); }
         }
@@ -1957,8 +1981,7 @@
             if (!jsonbinKey || !jsonbinId) return;
             isSyncing = true; setSyncStatus('syncing', 'Syncing...');
             try {
-                const payload = JSON.parse(JSON.stringify(state));
-                delete payload.isAdminMode; delete payload.currentView;
+                const payload = stripLocalFields(state);
                 const res = await fetch(`https://api.jsonbin.io/v3/b/${jsonbinId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'X-Master-Key': jsonbinKey },
@@ -1980,9 +2003,10 @@
                 const data = await res.json();
                 const remote = data.record;
                 if (remote && remote.year) {
-                    const cur = JSON.stringify({ ...state, isAdminMode: false, currentView: 'public' });
-                    const rem = JSON.stringify({ ...remote });
-                    if (cur !== rem) { const cv = state.currentView, ia = state.isAdminMode; Object.assign(state, remote); state.currentView = cv; state.isAdminMode = ia; renderCurrent(); showToast('🔄 Synced from cloud'); }
+                    mergeRemoteData(remote);
+                    localStorage.setItem('nrcc_circuit_state', JSON.stringify(state));
+                    renderCurrent();
+                    showToast('🔄 Synced from cloud');
                     setSyncStatus('active', 'Cloud Sync Active');
                 }
             } catch (e) { console.error(e); setSyncStatus('error', 'JSONBin Pull Error'); }
@@ -2219,7 +2243,9 @@
         function saveState() {
             try {
                 localStorage.setItem('nrcc_circuit_state', JSON.stringify(state)); showToast();
-                if (db) { isSyncing = true; setSyncStatus('syncing', 'Syncing...'); db.ref('nrcc_v5').set(state).then(() => { setSyncStatus('active', 'Cloud Sync Active'); isSyncing = false; }).catch(e => { console.error(e); setSyncStatus('error', 'Sync Error — Check DB Rules'); isSyncing = false; }); }
+                // Push only data fields to cloud — never push navigation/UI state
+                const cloudPayload = stripLocalFields(state);
+                if (db) { isSyncing = true; setSyncStatus('syncing', 'Syncing...'); db.ref('nrcc_v5').set(cloudPayload).then(() => { setSyncStatus('active', 'Cloud Sync Active'); isSyncing = false; }).catch(e => { console.error(e); setSyncStatus('error', 'Sync Error — Check DB Rules'); isSyncing = false; }); }
                 else if (state.jsonbinKey && state.jsonbinId) { jsonbinPush(); }
             } catch (e) { }
         }
@@ -2250,6 +2276,20 @@
             if (n === 9) return state.checklists && Object.keys(state.checklists).length > 0;
             return false;
         }
+        function calcGrandTotal() {
+            computeWeeks();
+            const D = state.dieselPrice, P = state.petrolPrice, rehCPH = ceil10(2.5 * P);
+            let total = 0;
+            (state.weeks || []).forEach(wk => {
+                const specials = wk.specials || [];
+                const ds = specials.filter(e => e.name && e.fuelType === 'diesel'), ps = specials.filter(e => e.name && (e.fuelType || 'petrol') === 'petrol');
+                let weekSub = 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3;
+                ds.forEach(e => weekSub += ceil10((e.litresPerHour || 12) * D) * (e.hours || 3));
+                ps.forEach(e => weekSub += ceil10((e.litresPerHour || 2.5) * P) * (e.hours || 3));
+                total += weekSub;
+            });
+            return total;
+        }
         const STEP_DEFS = [
             { n: 1, icon: '📅', label: 'Calendar' },
             { n: 2, icon: '📋', label: 'Roster' },
@@ -2268,37 +2308,18 @@
         function renderStep1() {
             let yearOpts = ''; for (let y = state.year - 1; y <= state.year + 2; y++) yearOpts += `<option value="${y}" ${y === state.year ? 'selected' : ''}>${y}</option>`;
             const monthOpts = MONTHS.map((m, i) => `<option value="${i}" ${i === state.month ? 'selected' : ''}>${m}</option>`).join('');
+            const grandTotal = calcGrandTotal();
             return `
   <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">📅</div><div><h2>Month Setup</h2><div class="subtitle">Select the month you're preparing</div></div></div>
-    <div class="form-row"><div class="form-group"><label class="field-label">Month</label><select onchange="state.month=parseInt(this.value)">${monthOpts}</select></div>
-    <div class="form-group"><label class="field-label">Year</label><select onchange="state.year=parseInt(this.value)">${yearOpts}</select></div></div></div>
+    <div class="form-row"><div class="form-group"><label class="field-label">Month</label><select onchange="state.month=parseInt(this.value);renderCurrent()">${monthOpts}</select></div>
+    <div class="form-group"><label class="field-label">Year</label><select onchange="state.year=parseInt(this.value);renderCurrent()">${yearOpts}</select></div></div></div>
   <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-gold">⛽</div><div><h2>Fuel Prices</h2><div class="subtitle">Update if prices have changed</div></div></div>
-    <div class="form-row"><div class="form-group"><label class="field-label">Diesel (₦ / litre)</label><input type="number" value="${state.dieselPrice}" onchange="state.dieselPrice=parseFloat(this.value)||1000"></div>
-    <div class="form-group"><label class="field-label">Petrol (₦ / litre)</label><input type="number" value="${state.petrolPrice}" onchange="state.petrolPrice=parseFloat(this.value)||845"></div></div></div>
+    <div class="form-row"><div class="form-group"><label class="field-label">Diesel (₦ / litre)</label><input type="number" value="${state.dieselPrice}" onchange="state.dieselPrice=parseFloat(this.value)||1000;renderCurrent()"></div>
+    <div class="form-group"><label class="field-label">Petrol (₦ / litre)</label><input type="number" value="${state.petrolPrice}" onchange="state.petrolPrice=parseFloat(this.value)||845;renderCurrent()"></div></div></div>
   <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">🎵</div><div><h2>Default Rehearsal Day</h2><div class="subtitle">Override per week in next step</div></div></div>
     <div class="radio-group">${[{ v: 4, l: 'Thursday' }, { v: 5, l: 'Friday' }, { v: 6, l: 'Saturday' }].map(d => `<div class="radio-option"><input type="radio" name="rehDay" id="rd${d.v}" value="${d.v}" ${state.defaultRehDay === d.v ? 'checked' : ''} onchange="state.defaultRehDay=parseInt(this.value);renderCurrent()"><label for="rd${d.v}">${d.l}</label></div>`).join('')}</div></div>
-  <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-gold">⚡</div><div><h2>Cloud Sync</h2><div class="subtitle">Sync data across all your devices in real time</div></div></div>
-    <div style="margin-bottom:14px">
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button onclick="document.getElementById('syncFirebasePanel').style.display='block';document.getElementById('syncJsonbinPanel').style.display='none'" class="btn btn-outline" style="flex:1;font-size:12px">🔥 Firebase</button>
-        <button onclick="document.getElementById('syncJsonbinPanel').style.display='block';document.getElementById('syncFirebasePanel').style.display='none'" class="btn btn-primary" style="flex:1;font-size:12px">📦 JSONBin (Recommended)</button>
-      </div>
-      <div id="syncJsonbinPanel" style="display:block">
-        <div class="alert alert-info" style="margin-bottom:10px">✅ <strong>JSONBin is easier to set up</strong> — No console needed. Go to <a href="https://jsonbin.io" target="_blank" style="color:var(--accent-blue)">jsonbin.io</a>, sign up free, create a bin, and paste the API key and Bin ID below.</div>
-        <div class="form-row">
-          <div class="form-group"><label class="field-label">JSONBin API Key (X-Master-Key)</label><input type="password" value="${state.jsonbinKey || ''}" placeholder="$2b$10…" onchange="state.jsonbinKey=this.value;saveState();if(state.jsonbinKey&&state.jsonbinId)initJsonbin();"></div>
-          <div class="form-group"><label class="field-label">Bin ID</label><input type="text" value="${state.jsonbinId || ''}" placeholder="67a4f…" onchange="state.jsonbinId=this.value;saveState();if(state.jsonbinKey&&state.jsonbinId)initJsonbin();"></div>
-        </div>
-        <button class="btn btn-outline" style="font-size:12px" onclick="jsonbinPull().then(()=>showToast('🔄 Pulled latest data'))">↓ Pull Latest from Cloud</button>
-      </div>
-      <div id="syncFirebasePanel" style="display:none">
-        <div class="alert alert-warn" style="margin-bottom:10px">⚠️ If you see <strong>Sync Error</strong>, go to <strong>Firebase Console → Realtime Database → Rules</strong> and set both <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px">"read"</code> and <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px">"write"</code> to <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px">true</code>, then Publish.</div>
-        <div class="form-group"><label class="field-label">Firebase Config JSON</label>
-        <textarea id="firebaseConfigInput" style="font-family:monospace;font-size:11px;height:100px" placeholder='{"apiKey":"...","databaseURL":"...",...}'
-          onchange="try{state.firebaseConfig=JSON.parse(this.value);initFirebase();saveState();}catch(e){alert('Invalid JSON');}"
-        >${state.firebaseConfig ? JSON.stringify(state.firebaseConfig, null, 2) : ''}</textarea></div>
-      </div>
-    </div>
+  <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">💰</div><div><h2>Budget Summary</h2><div class="subtitle">Anticipated total cost for ${MONTHS[state.month]} ${state.year}</div></div></div>
+    <div style="display:flex;justify-content:space-between;padding:12px;background:linear-gradient(135deg,rgba(212,168,67,0.15),rgba(212,168,67,0.05));border-radius:var(--radius-sm);margin-top:8px;font-weight:700"><span>Grand Total</span><span style="color:var(--gold);font-size:20px">₦${grandTotal.toLocaleString()}</span></div>
   </div>
   <div class="nav-row"><div></div><button class="btn btn-primary" onclick="goStep2()">Next: Weekly Events →</button></div>`;
         }
@@ -2641,18 +2662,6 @@
         // ══════════════════════════════════════════
         function renderStep9() {
             const mo = MONTHS[state.month], yr = state.year;
-            const D = state.dieselPrice, P = state.petrolPrice, rehCPH = ceil10(2.5 * P);
-            let grandTotal = 0;
-            const tableRows = (state.weeks || []).map((wk, wi) => {
-                const specials = wk.specials || [];
-                const ds = specials.filter(e => e.name && e.fuelType === 'diesel'), ps = specials.filter(e => e.name && (e.fuelType || 'petrol') === 'petrol');
-                let weekSub = 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3;
-                ds.forEach(e => weekSub += ceil10((e.litresPerHour || 12) * D) * (e.hours || 3));
-                ps.forEach(e => weekSub += ceil10((e.litresPerHour || 2.5) * P) * (e.hours || 3));
-                grandTotal += weekSub;
-                return `<tr><td>${wi + 1}</td><td>${fmtDisplay(wk.wednesday)}</td><td>${fmtDisplay(wk.sunday)}</td><td>${fmtDisplay(wk.rehDate)}</td><td>${specials.length} events</td></tr>`;
-            }).join('');
-
             return `<div class="gen-hero fade-in"><div class="month-chip">${mo.toUpperCase()} ${yr}</div><h2>Sync & Finalize Report</h2><div class="gen-sub">Data compiled · Ready for cloud sync or export</div>
                 <div class="gen-btns">
                     <button class="btn btn-gen-excel" onclick="generateExcel()">📊 Export Budget (Excel)</button>
@@ -2675,10 +2684,6 @@
                         onchange="try{state.firebaseConfig=JSON.parse(this.value);initFirebase();saveState();showToast('🔥 Firebase Config Updated');}catch(e){alert('Invalid JSON config');}">${state.firebaseConfig ? JSON.stringify(state.firebaseConfig, null, 2) : ''}</textarea>
                     </div>
                 </div>
-            </div>
-
-            <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">💰</div><div><h2>Budget Summary</h2></div></div>
-                <div style="display:flex;justify-content:space-between;padding:12px;background:linear-gradient(135deg,rgba(212,168,67,0.15),rgba(212,168,67,0.05));border-radius:var(--radius-sm);margin-top:8px;font-weight:700"><span>Grand Total</span><span style="color:var(--gold);font-size:20px">₦${grandTotal.toLocaleString()}</span></div>
             </div>
             <div class="nav-row"><button class="btn btn-outline" onclick="goStep(8)">← Back</button><div></div></div>`;
         }
@@ -2722,6 +2727,25 @@
         function openDrawer(targetDk) {
             document.getElementById('serviceDrawer').classList.add('open');
             document.getElementById('drawerOverlay').classList.add('open');
+            // Auto-detect the most relevant service date if none specified
+            if (!targetDk) {
+                const svcDates = getServiceDatesForRoster();
+                if (svcDates.length > 0) {
+                    const now = new Date();
+                    const today = now.toISOString().slice(0, 10);
+                    // 1. Prefer a service happening TODAY
+                    let best = svcDates.find(s => dateKey(s.date) === today);
+                    if (!best) {
+                        // 2. Next upcoming service
+                        best = svcDates.find(s => new Date(s.date) >= now);
+                    }
+                    if (!best) {
+                        // 3. Most recent past service
+                        best = svcDates[svcDates.length - 1];
+                    }
+                    if (best) targetDk = dateKey(best.date);
+                }
+            }
             renderDrawer(targetDk);
         }
         function closeDrawer() { document.getElementById('serviceDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
