@@ -1983,6 +1983,17 @@
                         localStorage.setItem('nrcc_circuit_state', JSON.stringify(state));
                         renderCurrent();
                         showToast('🔄 Synced');
+                    } else if (hasRealData()) {
+                        // Firebase is empty but we have local data — push it up to restore cloud
+                        console.log('Firebase empty but local has data — restoring cloud');
+                        const cloudPayload = stripLocalFields(state);
+                        isSyncing = true;
+                        setSyncStatus('syncing', 'Restoring cloud...');
+                        db.ref('nrcc_v5').set(cloudPayload).then(() => {
+                            setSyncStatus('active', 'Cloud Sync Active');
+                            isSyncing = false;
+                            showToast('☁️ Data restored to cloud');
+                        }).catch(e => { console.error(e); isSyncing = false; });
                     }
                     // Mark that we've completed at least one sync — safe to push now
                     hasInitialSynced = true;
