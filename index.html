@@ -2035,10 +2035,10 @@
         function getActiveMembers() { return state.teamMembers.filter(m => m.trim()); }
         function getServiceDatesForRoster() {
             const dates = [];
-            state.weeks.forEach(wk => {
-                dates.push({ date: wk.wednesday, label: `Mid-Week — ${fmtDisplay(wk.wednesday)}` });
-                dates.push({ date: wk.sunday, label: `Sunday — ${fmtDisplay(wk.sunday)}` });
-                wk.specials.forEach(ev => { if (ev.name && ev.date) dates.push({ date: new Date(ev.date), label: `${ev.name} — ${fmtDisplay(new Date(ev.date))}` }); });
+            (state.weeks || []).forEach(wk => {
+                if (wk.wednesday) dates.push({ date: wk.wednesday, label: `Mid-Week — ${fmtDisplay(wk.wednesday)}` });
+                if (wk.sunday) dates.push({ date: wk.sunday, label: `Sunday — ${fmtDisplay(wk.sunday)}` });
+                (wk.specials || []).forEach(ev => { if (ev.name && ev.date) dates.push({ date: new Date(ev.date), label: `${ev.name} — ${fmtDisplay(new Date(ev.date))}` }); });
             });
             return dates.filter(d => d.date).sort((a, b) => new Date(a.date) - new Date(b.date));
         }
@@ -2207,7 +2207,8 @@
                     if (!p.checklistLogs) p.checklistLogs = {};
                     if (!p.jsonbinKey) p.jsonbinKey = '';
                     if (!p.jsonbinId) p.jsonbinId = '';
-                    p.isAdminMode = false; p.currentView = 'public';
+                    // Allow view persistence across refresh
+                    if (!p.currentView) p.currentView = 'public';
                     return p;
                 }
             } catch (e) { }
@@ -2239,33 +2240,26 @@
         // ══════════════════════════════════════════
         function stepHasData(n) {
             if (n === 1) return state.month !== undefined && state.year;
-            if (n === 2) return state.weeks && state.weeks.length > 0;
-            if (n === 3) return state.teamMembers.some(m => m.trim()) || state.seedBalance || state.budgetBalance;
-            if (n === 4) return state.roles && state.roles.some(r => r.primary);
+            if (n === 2) return state.roles && state.roles.some(r => r.primary);
+            if (n === 3) return state.weeks && state.weeks.length > 0;
+            if (n === 4) return Object.keys(state.spiritualActivities).length > 0;
             if (n === 5) return Object.keys(state.servicePerformance).length > 0;
-            if (n === 6) return Object.keys(state.spiritualActivities).length > 0;
-            if (n === 1) return state.month !== undefined && state.year; // Calendar
-            if (n === 2) return state.roles && state.roles.some(r => r.primary); // Roster
-            if (n === 3) return state.weeks && state.weeks.length > 0; // Attendance (Weekly Events)
-            if (n === 4) return Object.keys(state.spiritualActivities).length > 0; // Spiritual
-            if (n === 5) return Object.keys(state.servicePerformance).length > 0; // Spirit (Performance)
-            if (n === 6) return state.teamMembers.some(m => m.trim()) || state.seedBalance || state.budgetBalance; // Performance (Team & Report)
-            if (n === 7) return state.meetingMinutes && state.meetingMinutes.length > 0; // Meeting
-            if (n === 8) return state.expenses && state.expenses.length > 0; // Expenses
-            if (n === 9) return state.checklists && Object.keys(state.checklists).length > 0; // Operations (Checklists)
+            if (n === 6) return state.teamMembers.some(m => m.trim()) || state.seedBalance || state.budgetBalance;
+            if (n === 7) return state.meetingMinutes && state.meetingMinutes.length > 0;
+            if (n === 8) return state.expenses && state.expenses.length > 0;
+            if (n === 9) return state.checklists && Object.keys(state.checklists).length > 0;
             return false;
         }
         const STEP_DEFS = [
             { n: 1, icon: '📅', label: 'Calendar' },
             { n: 2, icon: '📋', label: 'Roster' },
             { n: 3, icon: '👥', label: 'Attendance' },
-            { n: 4, icon: '✨', label: 'Spiritual' },
-            { n: 5, icon: '🔥', label: 'Spirit' },
-            { n: 6, icon: '📈', label: 'Performance' },
+            { n: 4, icon: '🎯', label: 'Role Assignment' },
+            { n: 5, icon: '📊', label: 'Steward Performance' },
+            { n: 6, icon: '🙏', label: 'Spiritual Activities' },
             { n: 7, icon: '📝', label: 'Meeting' },
             { n: 8, icon: '💸', label: 'Expenses' },
-            { n: 9, icon: '⚙️', label: 'Operations' },
-            { n: 10, icon: '📑', label: 'Generate' }
+            { n: 9, icon: '☁️', label: 'Sync' }
         ];
 
         // ══════════════════════════════════════════
@@ -2369,12 +2363,51 @@
         <td><select onchange="state.roles[${i}].primary=this.value;saveState()"><option value="">—</option>${opts}</select></td>
         <td><select onchange="state.roles[${i}].alt1=this.value;saveState()"><option value="">—</option>${opts}</select></td>
         <td><select onchange="state.roles[${i}].alt2=this.value;saveState()"><option value="">—</option>${opts}</select></td></tr>`).join('');
+
+            const mkEd = (type, title) => {
+                const items = state.checklists[type] || [];
+                const rows = items.map((it, i) => `
+                    <div class="list-item" style="padding:8px">
+                        <input type="text" value="${it.task}" placeholder="Task name..." onchange="state.checklists.${type}[${i}].task=this.value;saveState()" style="flex:2">
+                        <input type="text" value="${it.cat || ''}" placeholder="Category (PWR etc)" onchange="state.checklists.${type}[${i}].cat=this.value;saveState()" style="flex:1">
+                        <button class="btn-icon" onclick="state.checklists.${type}.splice(${i},1);saveState();renderCurrent()">✕</button>
+                    </div>`).join('');
+                return `<div class="glass" style="margin-bottom:20px">
+                    <div class="glass-header"><div class="glass-icon glass-icon-navy">📋</div><div><h2>${title}</h2></div></div>
+                    ${rows}
+                    <button class="btn btn-outline" style="margin-top:10px;font-size:11px" onclick="state.checklists.${type}.push({id:'cl'+Date.now(),task:'',cat:''});saveState();renderCurrent()">+ Add Item</button>
+                </div>`;
+            };
+
+            const roleRows = state.roles.map((r, i) => `
+                <div class="list-item" style="padding:10px;background:rgba(255,255,255,0.03)">
+                    <div style="display:grid;grid-template-columns:80px 1fr auto;gap:12px;width:100%;align-items:center">
+                        <input type="text" value="${r.code}" onchange="state.roles[${i}].code=this.value;saveState()" style="font-weight:700;color:var(--gold)">
+                        <input type="text" value="${r.name}" onchange="state.roles[${i}].name=this.value;saveState()">
+                        <button class="btn-icon" onclick="state.roles.splice(${i},1);saveState();renderCurrent()">✕</button>
+                    </div>
+                </div>`).join('');
+
             // Set selected values after render
             setTimeout(() => { document.querySelectorAll('.roster-grid select').forEach((s, idx) => { const ri = Math.floor(idx / 3), fi = ['primary', 'alt1', 'alt2'][idx % 3]; s.value = state.roles[ri]?.[fi] || ''; }); }, 0);
-            return `<div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">📋</div><div><h2>Role Assignments — ${MONTHS[state.month]}</h2><div class="subtitle">Assign primary + alternates</div></div></div>
-        ${members.length === 0 ? '<div class="alert alert-warn">Add team members in Step 3 first.</div>' :
+
+            return `
+                <div class="glass fade-in">
+                    <div class="glass-header"><div class="glass-icon glass-icon-navy">📋</div><div><h2>Role Assignments — ${MONTHS[state.month]}</h2><div class="subtitle">Assign primary + alternates</div></div></div>
+                    ${members.length === 0 ? '<div class="alert alert-warn">Add team members in Step 3 first.</div>' :
                     `<div style="overflow-x:auto"><table class="roster-grid"><thead><tr><th>Code</th><th>Role</th><th>Primary</th><th>Alt 1</th><th>Alt 2</th></tr></thead><tbody>${rows}</tbody></table></div>`}
-      </div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(3)">← Back</button><button class="btn btn-primary" onclick="goStep(5)">Next: Performance →</button></div>`;
+                </div>
+                
+                <div class="glass fade-in">
+                    <div class="glass-header"><div class="glass-icon glass-icon-gold">🛡️</div><div><h2>Role Editor</h2><div class="subtitle">Edit departmental roles and codes</div></div></div>
+                    ${roleRows}
+                    <button class="btn btn-outline" style="margin-top:12px" onclick="state.roles.push({code:'',name:'',primary:'',alt1:'',alt2:''});saveState();renderCurrent()">+ Add Role</button>
+                </div>
+                ${mkEd('pre', 'Pre-Service Checklist Editor')}
+                ${mkEd('in', 'In-Service Checklist Editor')}
+                ${mkEd('post', 'Post-Service Checklist Editor')}
+                
+                <div class="nav-row"><button class="btn btn-outline" onclick="goStep(3)">← Back</button><button class="btn btn-primary" onclick="goStep(5)">Next: Performance →</button></div>`;
         }
 
         // ══════════════════════════════════════════
@@ -2517,7 +2550,7 @@
             const mtgs = state.meetingMinutes || [];
             const members = getActiveMembers();
             const rows = mtgs.map((m, i) => {
-                const cert = state.certifiedLog?.['mtg_' + i];
+                const cert = state.certifiedLog?.[`mtg_${i}`];
                 return `
                 <div class="glass" style="margin-bottom:12px;padding:16px;border-left:4px solid var(--gold);${cert ? 'opacity:0.8' : ''}">
                     <div style="display:flex;justify-content:space-between;margin-bottom:10px">
@@ -2563,7 +2596,7 @@
         function renderStep8() {
             const members = getActiveMembers();
             const rows = state.expenses.map((ex, i) => {
-                const cert = state.certifiedLog?.['ex_' + ex.id];
+                const cert = state.certifiedLog?.[`ex_${ex.id}`];
                 return `
                 <div class="ex-row" style="${cert ? 'opacity:0.8' : ''}">
                     <input type="date" value="${ex.date}" ${cert ? 'disabled' : ''} onchange="state.expenses[${i}].date=this.value;saveState()">
@@ -2597,35 +2630,57 @@
         }
 
         // ══════════════════════════════════════════
-        // STEP 9 — GENERATE
+        // STEP 9 — REPORT (OPERATIONS)
+        // ══════════════════════════════════════════
+
+        // ══════════════════════════════════════════
+        // STEP 10 — SYNC (REPORT GENERATION)
+        // ══════════════════════════════════════════
+        // ══════════════════════════════════════════
+        // STEP 9 — SYNC (DATABASE & EXPORT)
         // ══════════════════════════════════════════
         function renderStep9() {
             const mo = MONTHS[state.month], yr = state.year;
             const D = state.dieselPrice, P = state.petrolPrice, rehCPH = ceil10(2.5 * P);
             let grandTotal = 0;
-            const tableRows = state.weeks.map((wk, wi) => {
-                const ds = wk.specials.filter(e => e.name && e.fuelType === 'diesel'), ps = wk.specials.filter(e => e.name && (e.fuelType || 'petrol') === 'petrol');
+            const tableRows = (state.weeks || []).map((wk, wi) => {
+                const specials = wk.specials || [];
+                const ds = specials.filter(e => e.name && e.fuelType === 'diesel'), ps = specials.filter(e => e.name && (e.fuelType || 'petrol') === 'petrol');
                 let weekSub = 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3;
                 ds.forEach(e => weekSub += ceil10((e.litresPerHour || 12) * D) * (e.hours || 3));
                 ps.forEach(e => weekSub += ceil10((e.litresPerHour || 2.5) * P) * (e.hours || 3));
                 grandTotal += weekSub;
-                return `<tr><td>${wi + 1}</td><td>${fmtDisplay(wk.wednesday)}</td><td>${fmtDisplay(wk.sunday)}</td><td>${fmtDisplay(wk.rehDate)}</td><td>${wk.specials.length} events</td></tr>`;
+                return `<tr><td>${wi + 1}</td><td>${fmtDisplay(wk.wednesday)}</td><td>${fmtDisplay(wk.sunday)}</td><td>${fmtDisplay(wk.rehDate)}</td><td>${specials.length} events</td></tr>`;
             }).join('');
 
-            const weekBreakdown = state.weeks.map((wk, i) => `
-                <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-                    <span style="font-size:12px;color:var(--text-dim)">Week ${i + 1}</span>
-                    <span style="font-weight:600">₦${((12 * D * 2.5 + 12 * D * 4 + rehCPH * 3) + wk.specials.reduce((a, e) => a + (ceil10((e.litresPerHour || (e.fuelType === 'diesel' ? 12 : 2.5)) * (e.fuelType === 'diesel' ? D : P)) * (e.hours || 3)), 0)).toLocaleString()}</span>
+            return `<div class="gen-hero fade-in"><div class="month-chip">${mo.toUpperCase()} ${yr}</div><h2>Sync & Finalize Report</h2><div class="gen-sub">Data compiled · Ready for cloud sync or export</div>
+                <div class="gen-btns">
+                    <button class="btn btn-gen-excel" onclick="generateExcel()">📊 Export Budget (Excel)</button>
+                    <button class="btn btn-gen-word" onclick="generateWord()">📄 Activity Report (Word)</button>
                 </div>
-            `).join('');
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px" class="db-grid-mobile">
+                <div class="glass fade-in" style="margin-bottom:0">
+                    <div class="glass-header"><div class="glass-icon glass-icon-gold">📦</div><div><h2>JSONBin Sync</h2><div class="subtitle">Quick cloud backup</div></div></div>
+                    <div class="form-group"><label class="field-label">API Key</label><input type="password" value="${state.jsonbinKey || ''}" onchange="state.jsonbinKey=this.value;saveState()"></div>
+                    <div class="form-group" style="margin-top:10px"><label class="field-label">Bin ID</label><input type="text" value="${state.jsonbinId || ''}" onchange="state.jsonbinId=this.value;saveState()"></div>
+                    <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="jsonbinPush().then(()=>showToast('☁️ Synced to JSONBin'))">Push to Cloud</button>
+                </div>
+                
+                <div class="glass fade-in" style="margin-bottom:0">
+                    <div class="glass-header"><div class="glass-icon glass-icon-navy">🔥</div><div><h2>Firebase Sync</h2><div class="subtitle">Industrial strength DB</div></div></div>
+                    <div class="form-group"><label class="field-label">Firebase Config (JSON)</label>
+                    <textarea style="font-family:monospace;font-size:11px;height:115px;width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px" 
+                        onchange="try{state.firebaseConfig=JSON.parse(this.value);initFirebase();saveState();showToast('🔥 Firebase Config Updated');}catch(e){alert('Invalid JSON config');}">${state.firebaseConfig ? JSON.stringify(state.firebaseConfig, null, 2) : ''}</textarea>
+                    </div>
+                </div>
+            </div>
 
-            return `<div class="gen-hero fade-in"><div class="month-chip">${mo.toUpperCase()} ${yr}</div><h2>Department Report Ready</h2><div class="gen-sub">All data compiled · Ready for download</div>
-        <div class="gen-btns"><button class="btn btn-gen-excel" onclick="generateExcel()">📊 Download Budget (Excel)</button><button class="btn btn-gen-word" onclick="generateWord()">📄 Download Report (Word)</button></div></div>
-      <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-gold">💰</div><div><h2>Budget Summary</h2></div></div>${weekBreakdown}
-        <div style="display:flex;justify-content:space-between;padding:12px;background:linear-gradient(135deg,rgba(212,168,67,0.15),rgba(212,168,67,0.05));border-radius:var(--radius-sm);margin-top:8px;font-weight:700"><span>Grand Total</span><span style="color:var(--gold);font-size:18px">₦${grandTotal.toLocaleString()}</span></div></div>
-      <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">📋</div><div><h2>Events Summary</h2></div></div>
-        <table class="summary-table"><thead><tr><th>Week</th><th><span class="tag tag-d">D</span> Midweek</th><th><span class="tag tag-d">D</span> Sunday</th><th><span class="tag tag-p">P</span> Rehearsal</th><th>Specials</th></tr></thead><tbody>${tableRows}</tbody></table></div>
-      <div class="nav-row"><button class="btn btn-outline" onclick="goStep(8)">← Back</button><div></div></div>`;
+            <div class="glass fade-in"><div class="glass-header"><div class="glass-icon glass-icon-navy">💰</div><div><h2>Budget Summary</h2></div></div>
+                <div style="display:flex;justify-content:space-between;padding:12px;background:linear-gradient(135deg,rgba(212,168,67,0.15),rgba(212,168,67,0.05));border-radius:var(--radius-sm);margin-top:8px;font-weight:700"><span>Grand Total</span><span style="color:var(--gold);font-size:20px">₦${grandTotal.toLocaleString()}</span></div>
+            </div>
+            <div class="nav-row"><button class="btn btn-outline" onclick="goStep(8)">← Back</button><div></div></div>`;
         }
 
         // ══════════════════════════════════════════
@@ -2846,7 +2901,7 @@
         function checkPin() { const v = document.getElementById('pinInput').value; if (!v) return; if (v === state.adminPin) { closePinModal(); showAdminSummary(); } else if (v === state.ministerPin) { closePinModal(); state.currentView = 'minister'; renderCurrent(); } else if (v.length >= state.adminPin.length) { document.getElementById('pinError').textContent = 'Incorrect PIN. Try again.'; document.getElementById('pinInput').value = ''; } }
         function showAdminSummary() {
             const mo = MONTHS[state.month], yr = state.year, svcDates = getServiceDatesForRoster(), members = getActiveMembers(), D = state.dieselPrice, P = state.petrolPrice, rehCPH = ceil10(2.5 * P);
-            let grandTotal = 0; state.weeks.forEach(wk => { grandTotal += 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3; wk.specials.forEach(ev => { const lph = ev.litresPerHour || 2.5, ft = ev.fuelType || 'petrol'; grandTotal += ceil10(lph * (ft === 'diesel' ? D : P)) * (ev.hours || 3); }); });
+            let grandTotal = 0; (state.weeks || []).forEach(wk => { grandTotal += 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3; (wk.specials || []).forEach(ev => { const lph = ev.litresPerHour || 2.5, ft = ev.fuelType || 'petrol'; grandTotal += ceil10(lph * (ft === 'diesel' ? D : P)) * (ev.hours || 3); }); });
             const perfRows = members.map(m => { const res = calcMemberScore(m, svcDates), sc = res.aggregate, col = sc >= 80 ? 'sc-a' : sc >= 60 ? 'sc-b' : 'sc-c'; return `<tr><td style="padding:6px 10px;border-bottom:1px solid var(--border)">${m}</td><td style="padding:6px 10px;border-bottom:1px solid var(--border);text-align:center"><span class="${col}" style="font-weight:700">${sc}%</span></td></tr>`; }).join('');
             const logRows = svcDates.map(svc => {
                 const dk = dateKey(svc.date), att = state.memberAttendance[dk] || { locked: false, entries: {} }, isLocked = att.locked, presentCount = Object.values(att.entries).filter(e => e.present).length;
@@ -2880,8 +2935,9 @@
             const D = state.dieselPrice, P = state.petrolPrice, rehCPH = ceil10(2.5 * P), mo = MONTHS[state.month], yr = state.year; let grandTotal = 0;
             const css = `body{font-family:Arial,sans-serif;font-size:10pt}table{border-collapse:collapse;width:100%}.hc{background:#0f1f3d;color:#fff;text-align:center;padding:8px 6px;font-weight:bold}.hg{background:#c9972c;padding:3px}.hw{background:#1a3260;color:#fff;font-size:10.5pt;font-weight:bold;padding:6px 8px}.th{background:#243e7a;color:#fff;font-weight:bold;text-align:center;border:1px solid #1a2f6a;padding:5px 4px;font-size:9pt}.td.d{border:1px solid #ccc;padding:4px 6px;font-size:9.5pt}td.dc{border:1px solid #ccc;padding:4px 6px;font-size:9.5pt;text-align:center}td.dr{border:1px solid #ccc;padding:4px 6px;font-size:9.5pt;text-align:right}.fd{background:#fff3e0;color:#7b3800;font-weight:bold;text-align:center;border:1px solid #ccc;padding:4px 6px}.fp{background:#e3f2fd;color:#0d47a1;font-weight:bold;text-align:center;border:1px solid #ccc;padding:4px 6px}.sub{background:#fffbeb;font-weight:bold}.gt{background:#c9972c;color:#0f1f3d;font-weight:bold;font-size:11pt}.sp{height:8px}`;
             let weeksHtml = '';
-            state.weeks.forEach((wk, wi) => {
-                const ds = wk.specials.filter(e => e.name && e.fuelType === 'diesel'), ps = wk.specials.filter(e => e.name && (e.fuelType || 'petrol') === 'petrol');
+            (state.weeks || []).forEach((wk, wi) => {
+                const specials = wk.specials || [];
+                const ds = specials.filter(e => e.name && e.fuelType === 'diesel'), ps = specials.filter(e => e.name && (e.fuelType || 'petrol') === 'petrol');
                 const midAmt = 12 * D * 2.5, sunAmt = 12 * D * 4, rehAmt = rehCPH * 3; let weekSub = midAmt + sunAmt + rehAmt;
                 ds.forEach(e => { weekSub += ceil10((e.litresPerHour || 12) * D) * (e.hours || 3); });
                 ps.forEach(e => { weekSub += ceil10((e.litresPerHour || 2.5) * P) * (e.hours || 3); });
@@ -2911,10 +2967,10 @@
         // ══════════════════════════════════════════
         function generateWord() {
             const mo = MONTHS[state.month], yr = state.year, D = state.dieselPrice, P = state.petrolPrice, rehCPH = ceil10(2.5 * P);
-            let grandTotal = 0; state.weeks.forEach(wk => { grandTotal += 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3; wk.specials.forEach(ev => { const lph = ev.litresPerHour || 2.5, ft = ev.fuelType || 'petrol'; grandTotal += ceil10(lph * (ft === 'diesel' ? D : P)) * (ev.hours || 3); }); });
+            let grandTotal = 0; (state.weeks || []).forEach(wk => { grandTotal += 12 * D * 2.5 + 12 * D * 4 + rehCPH * 3; (wk.specials || []).forEach(ev => { const lph = ev.litresPerHour || 2.5, ft = ev.fuelType || 'petrol'; grandTotal += ceil10(lph * (ft === 'diesel' ? D : P)) * (ev.hours || 3); }); });
             const membersLi = state.teamMembers.filter(m => m.trim()).map(m => `<li>${m}</li>`).join('') || '<li>[No members]</li>';
             const goalsLi = state.goals.filter(g => g.trim()).map(g => `<li>${g}</li>`).join('') || '<li>[No goals]</li>';
-            const serviceRows = state.weeks.map((wk, i) => `<tr><td>Week ${i + 1}</td><td>${fmtFull(wk.wednesday)}</td><td>${fmtFull(wk.sunday)}</td><td>${fmtFull(wk.rehDate)}</td><td>${wk.specials.filter(e => e.name).map(e => e.name).join(', ') || '—'}</td></tr>`).join('');
+            const serviceRows = (state.weeks || []).map((wk, i) => `<tr><td>Week ${i + 1}</td><td>${fmtFull(wk.wednesday)}</td><td>${fmtFull(wk.sunday)}</td><td>${fmtFull(wk.rehDate)}</td><td>${(wk.specials || []).filter(e => e.name).map(e => e.name).join(', ') || '—'}</td></tr>`).join('');
             const members = getActiveMembers(), svcDates = getServiceDatesForRoster();
             let spiritSection = ''; if (members.length > 0) { const nw = state.weeks.length || 5; const spiritRows = members.map(m => { const fr = (state.spiritualActivities[m]?.friday || []).filter(v => v === 'Y').length; const sa = (state.spiritualActivities[m]?.saturday || []).filter(v => v === 'Y').length; return `<tr><td>${m}</td><td style="text-align:center">${fr}/${nw}</td><td style="text-align:center">${sa}/${nw}</td></tr>`; }).join(''); spiritSection = `<h2>Spiritual Activities</h2><table><thead><tr><th>Steward</th><th>Friday (${nw} wks)</th><th>Saturday (${nw} wks)</th></tr></thead><tbody>${spiritRows}</tbody></table>`; }
             let rosterSection = ''; if (state.roles && state.roles.some(r => r.primary)) { const rRows = state.roles.map(r => `<tr><td><strong>${r.code}</strong></td><td>${r.name}</td><td>${r.primary || '—'}</td><td>${r.alt1 || '—'}</td><td>${r.alt2 || '—'}</td></tr>`).join(''); rosterSection = `<h2>Roster</h2><table><thead><tr><th>Code</th><th>Role</th><th>Primary</th><th>Alt 1</th><th>Alt 2</th></tr></thead><tbody>${rRows}</tbody></table>`; }
@@ -3157,22 +3213,29 @@
                 adminBtn.innerHTML = '🔓 Logout'; adminBtn.className = 'g-btn';
                 const sidebarHtml = STEP_DEFS.map(s => `<div class="sidebar-item ${state.step === s.n ? 'active' : ''}" onclick="goStep(${s.n})"><span class="si-icon">${s.icon}</span><span>${s.label}</span></div>`).join('');
                 let stepHtml = '';
-                if (state.step === 1) stepHtml = renderStep1();
-                else if (state.step === 2) stepHtml = renderStep2();
-                else if (state.step === 3) stepHtml = renderStep3();
-                else if (state.step === 4) stepHtml = renderStep4();
-                else if (state.step === 5) stepHtml = renderStep5();
-                else if (state.step === 6) stepHtml = renderStep6();
-                else if (state.step === 7) stepHtml = renderStep7();
-                else if (state.step === 8) stepHtml = renderStep8();
-                else if (state.step === 9) stepHtml = renderStep9();
-                else if (state.step === 10) stepHtml = renderStep10();
-                root.innerHTML = `<div class="app-layout"><div class="sidebar slide-in">
-              <div class="sidebar-label">Admin Portal</div>${sidebarHtml}
-              <div class="sidebar-label" style="margin-top:20px">Tools</div>
-              <div class="sidebar-item" onclick="openBioModal()"><span class="si-icon">👤</span><span>Bio Data</span></div>
-              <div class="sidebar-item" onclick="clearData()"><span class="si-icon">🗑</span><span>Clear Data</span></div>
-            </div><div class="main-content">${stepHtml}</div></div>`;
+                try {
+                    if (state.step === 1) stepHtml = renderStep1();
+                    else if (state.step === 2) stepHtml = renderStep2();
+                    else if (state.step === 3) stepHtml = renderStep3();
+                    else if (state.step === 4) stepHtml = renderStep4();
+                    else if (state.step === 5) stepHtml = renderStep5();
+                    else if (state.step === 6) stepHtml = renderStep6();
+                    else if (state.step === 7) stepHtml = renderStep7();
+                    else if (state.step === 8) stepHtml = renderStep8();
+                    else if (state.step === 9) stepHtml = renderStep9();
+                } catch (e) {
+                    console.error("Step Render Error:", e);
+                    stepHtml = `<div class="alert alert-error"><h3>⚠️ Step Rendering Error</h3><p>${e.message}</p><button class="btn btn-primary" onclick="state.step=1;renderCurrent()">Back to Calendar</button></div>`;
+                }
+                root.innerHTML = `<div class="app-layout">
+                    <div class="sidebar slide-in">
+                        <div class="sidebar-label">Admin Portal</div>${sidebarHtml}
+                        <div class="sidebar-label" style="margin-top:20px">Tools</div>
+                        <div class="sidebar-item" onclick="openBioModal()"><span class="si-icon">👤</span><span>Bio Data</span></div>
+                        <div class="sidebar-item" onclick="clearData()"><span class="si-icon">🗑</span><span>Clear Data</span></div>
+                    </div>
+                    <div class="main-content">${stepHtml}</div>
+                </div>`;
                 return;
             }
 
