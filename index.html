@@ -1934,6 +1934,9 @@
         // FIREBASE
         // ══════════════════════════════════════════
         let db = null, isSyncing = false;
+        // Block cloud pushes until we've received the first sync from Firebase
+        let hasInitialSynced = false;
+
         // Fields that are local to each device and should NEVER be synced
         const LOCAL_ONLY_KEYS = ['step', 'currentView', 'isAdminMode', 'firebaseConfig', 'jsonbinKey', 'jsonbinId'];
 
@@ -1941,6 +1944,19 @@
             const clean = JSON.parse(JSON.stringify(obj));
             LOCAL_ONLY_KEYS.forEach(k => delete clean[k]);
             return clean;
+        }
+
+        // Check if state has any real user-entered data (not just defaults)
+        function hasRealData() {
+            const hasAttendance = Object.keys(state.memberAttendance || {}).length > 0;
+            const hasPerformance = Object.keys(state.servicePerformance || {}).length > 0;
+            const hasSpiritual = Object.keys(state.spiritualActivities || {}).length > 0;
+            const hasExpenses = (state.expenses || []).length > 0;
+            const hasMeetings = (state.meetingMinutes || []).length > 0;
+            const hasServiceLogs = Object.keys(state.serviceLog || {}).length > 0;
+            const hasChecklistLogs = Object.keys(state.checklistLogs || {}).length > 0;
+            const hasRoles = (state.roles || []).some(r => r.primary);
+            return hasAttendance || hasPerformance || hasSpiritual || hasExpenses || hasMeetings || hasServiceLogs || hasChecklistLogs || hasRoles;
         }
 
         function mergeRemoteData(remote) {
@@ -1968,6 +1984,8 @@
                         renderCurrent();
                         showToast('🔄 Synced');
                     }
+                    // Mark that we've completed at least one sync — safe to push now
+                    hasInitialSynced = true;
                 });
             } catch (e) { console.error(e); setSyncStatus('error', 'Sync Error — Check DB Rules'); }
         }
@@ -2243,6 +2261,18 @@
         function saveState() {
             try {
                 localStorage.setItem('nrcc_circuit_state', JSON.stringify(state)); showToast();
+                // SAFEGUARD: Don't push to cloud until first sync is complete
+                // This prevents a fresh/empty device from overwriting real data in Firebase
+                if (!hasInitialSynced && db) {
+                    console.log('Skipping cloud push — waiting for initial sync');
+                    return;
+                }
+                // SAFEGUARD: Don't push if local state has no real data
+                // This prevents default state from overwriting real data
+                if (!hasRealData() && (db || (state.jsonbinKey && state.jsonbinId))) {
+                    console.log('Skipping cloud push — local state has no real data');
+                    return;
+                }
                 // Push only data fields to cloud — never push navigation/UI state
                 const cloudPayload = stripLocalFields(state);
                 if (db) { isSyncing = true; setSyncStatus('syncing', 'Syncing...'); db.ref('nrcc_v5').set(cloudPayload).then(() => { setSyncStatus('active', 'Cloud Sync Active'); isSyncing = false; }).catch(e => { console.error(e); setSyncStatus('error', 'Sync Error — Check DB Rules'); isSyncing = false; }); }
