@@ -1960,6 +1960,13 @@
         }
 
         function mergeRemoteData(remote) {
+            // Timestamp conflict resolution: only accept remote if it's newer
+            const localTime = state.lastModified || 0;
+            const remoteTime = remote.lastModified || 0;
+            if (remoteTime < localTime && hasRealData()) {
+                console.log('Remote data is older (' + new Date(remoteTime).toLocaleString() + ') than local (' + new Date(localTime).toLocaleString() + ') — skipping merge');
+                return false; // Signal: merge was skipped
+            }
             // Save local-only state before merging
             const localState = {};
             LOCAL_ONLY_KEYS.forEach(k => { if (state[k] !== undefined) localState[k] = state[k]; });
@@ -1967,6 +1974,7 @@
             Object.assign(state, remote);
             // Restore local-only state so navigation isn't affected
             Object.assign(state, localState);
+            return true; // Signal: merge was applied
         }
 
         function initFirebase() {
@@ -1979,13 +1987,25 @@
                     if (isSyncing) return;
                     const r = snap.val();
                     if (r) {
-                        mergeRemoteData(r);
-                        localStorage.setItem('nrcc_circuit_state', JSON.stringify(state));
-                        renderCurrent();
-                        showToast('🔄 Synced');
+                        const merged = mergeRemoteData(r);
+                        if (merged) {
+                            localStorage.setItem('nrcc_circuit_state', JSON.stringify(state));
+                            renderCurrent();
+                            showToast('🔄 Synced');
+                        } else {
+                            console.log('Remote data is stale — keeping local, pushing local to cloud');
+                            // Local is newer: push it up so the cloud gets the latest
+                            const cloudPayload = stripLocalFields(state);
+                            isSyncing = true;
+                            db.ref('nrcc_v5').set(cloudPayload).then(() => {
+                                setSyncStatus('active', 'Cloud Sync Active');
+                                isSyncing = false;
+                            }).catch(e => { console.error(e); isSyncing = false; });
+                        }
                     } else if (hasRealData()) {
                         // Firebase is empty but we have local data — push it up to restore cloud
                         console.log('Firebase empty but local has data — restoring cloud');
+                        state.lastModified = Date.now();
                         const cloudPayload = stripLocalFields(state);
                         isSyncing = true;
                         setSyncStatus('syncing', 'Restoring cloud...');
@@ -2032,10 +2052,12 @@
                 const data = await res.json();
                 const remote = data.record;
                 if (remote && remote.year) {
-                    mergeRemoteData(remote);
-                    localStorage.setItem('nrcc_circuit_state', JSON.stringify(state));
-                    renderCurrent();
-                    showToast('🔄 Synced from cloud');
+                    const merged = mergeRemoteData(remote);
+                    if (merged) {
+                        localStorage.setItem('nrcc_circuit_state', JSON.stringify(state));
+                        renderCurrent();
+                        showToast('🔄 Synced from cloud');
+                    }
                     setSyncStatus('active', 'Cloud Sync Active');
                 }
             } catch (e) { console.error(e); setSyncStatus('error', 'JSONBin Pull Error'); }
@@ -2271,15 +2293,15 @@
         function showToast(msg) { const t = document.getElementById('toast'); if (!t) return; t.textContent = msg || '✓ Saved'; t.classList.add('show'); clearTimeout(_toastTimer); _toastTimer = setTimeout(() => t.classList.remove('show'), 1800); }
         function saveState() {
             try {
+                // Stamp the modification time so sync knows which data is newest
+                state.lastModified = Date.now();
                 localStorage.setItem('nrcc_circuit_state', JSON.stringify(state)); showToast();
                 // SAFEGUARD: Don't push to cloud until first sync is complete
-                // This prevents a fresh/empty device from overwriting real data in Firebase
                 if (!hasInitialSynced && db) {
                     console.log('Skipping cloud push — waiting for initial sync');
                     return;
                 }
                 // SAFEGUARD: Don't push if local state has no real data
-                // This prevents default state from overwriting real data
                 if (!hasRealData() && (db || (state.jsonbinKey && state.jsonbinId))) {
                     console.log('Skipping cloud push — local state has no real data');
                     return;
