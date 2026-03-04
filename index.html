@@ -2282,6 +2282,8 @@
                     if (!p.checklistLogs) p.checklistLogs = {};
                     if (!p.jsonbinKey) p.jsonbinKey = '';
                     if (!p.jsonbinId) p.jsonbinId = '';
+                    // Initialize lastModified for pre-existing data that was saved before timestamps existed
+                    if (!p.lastModified) p.lastModified = Date.now();
                     // Allow view persistence across refresh
                     if (!p.currentView) p.currentView = 'public';
                     return p;
@@ -2361,7 +2363,7 @@
             { n: 5, icon: '📊', label: 'Steward Performance' },
             { n: 6, icon: '🙏', label: 'Spiritual Activities' },
             { n: 7, icon: '📝', label: 'Meeting' },
-            { n: 8, icon: '💸', label: 'Expenses' },
+            { n: 8, icon: '💸', label: 'Expenses & Report' },
             { n: 9, icon: '☁️', label: 'Sync' }
         ];
 
@@ -2709,8 +2711,14 @@
                         <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">Net Total Spent</div>
                         <div style="font-size:22px;font-weight:800;color:var(--gold)">₦${totalExp.toLocaleString()}</div>
                     </div>
+            </div>
+            <div class="gen-hero fade-in" style="margin-top:20px"><h2>Finalize Report</h2><div class="gen-sub">Data compiled · Ready for export</div>
+                <div class="gen-btns">
+                    <button class="btn btn-gen-excel" onclick="generateExcel()">📊 Export Budget (Excel)</button>
+                    <button class="btn btn-gen-word" onclick="generateWord()">📄 Activity Report (Word)</button>
                 </div>
-            </div><div class="nav-row"><button class="btn btn-outline" onclick="goStep(7)">← Back</button><button class="btn btn-primary" onclick="goStep(9)">Next: Generate →</button></div>`;
+            </div>
+            <div class="nav-row"><button class="btn btn-outline" onclick="goStep(7)">← Back</button><button class="btn btn-primary" onclick="goStep(9)">Next: Sync →</button></div>`;
         }
 
         // ══════════════════════════════════════════
@@ -2724,12 +2732,8 @@
         // STEP 9 — SYNC (DATABASE & EXPORT)
         // ══════════════════════════════════════════
         function renderStep9() {
-            const mo = MONTHS[state.month], yr = state.year;
-            return `<div class="gen-hero fade-in"><div class="month-chip">${mo.toUpperCase()} ${yr}</div><h2>Sync & Finalize Report</h2><div class="gen-sub">Data compiled · Ready for cloud sync or export</div>
-                <div class="gen-btns">
-                    <button class="btn btn-gen-excel" onclick="generateExcel()">📊 Export Budget (Excel)</button>
-                    <button class="btn btn-gen-word" onclick="generateWord()">📄 Activity Report (Word)</button>
-                </div>
+            return `<div class="glass fade-in" style="margin-top:0">
+                <div class="glass-header"><div class="glass-icon glass-icon-navy">☁️</div><div><h2>Cloud Sync</h2><div class="subtitle">Configure database sync for multi-device access</div></div></div>
             </div>
             
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px" class="db-grid-mobile">
@@ -2748,7 +2752,46 @@
                     </div>
                 </div>
             </div>
+
+            <div class="glass fade-in" style="margin-top:20px">
+                <div class="glass-header"><div class="glass-icon glass-icon-gold">🚀</div><div><h2>Force Sync</h2><div class="subtitle">Push all local data to cloud for all devices</div></div></div>
+                <div style="padding:0 8px 8px">
+                    <div class="alert alert-info" style="font-size:11px;margin-bottom:12px">Use this to push your device's data to Firebase so all other devices receive it. This will overwrite cloud data with your local data.</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Last modified: <strong style="color:var(--gold)">${state.lastModified ? new Date(state.lastModified).toLocaleString() : 'Never'}</strong></div>
+                    <button class="btn btn-primary" style="width:100%;padding:14px;font-size:14px;font-weight:700" onclick="forcePushToCloud()">🚀 Force Push All Data to Cloud</button>
+                </div>
+            </div>
             <div class="nav-row"><button class="btn btn-outline" onclick="goStep(8)">← Back</button><div></div></div>`;
+        }
+
+        function forcePushToCloud() {
+            if (!db && !(state.jsonbinKey && state.jsonbinId)) {
+                alert('No cloud sync configured. Set up Firebase or JSONBin first.');
+                return;
+            }
+            if (!confirm('This will overwrite all cloud data with this device\'s data. Continue?')) return;
+            state.lastModified = Date.now();
+            localStorage.setItem('nrcc_circuit_state', JSON.stringify(state));
+            const cloudPayload = stripLocalFields(state);
+            if (db) {
+                isSyncing = true;
+                setSyncStatus('syncing', 'Force pushing...');
+                db.ref('nrcc_v5').set(cloudPayload).then(() => {
+                    setSyncStatus('active', 'Cloud Sync Active');
+                    isSyncing = false;
+                    showToast('🚀 All data pushed to cloud!');
+                    renderCurrent();
+                }).catch(e => {
+                    console.error(e);
+                    setSyncStatus('error', 'Push failed');
+                    isSyncing = false;
+                });
+            } else if (state.jsonbinKey && state.jsonbinId) {
+                jsonbinPush().then(() => {
+                    showToast('🚀 All data pushed to JSONBin!');
+                    renderCurrent();
+                });
+            }
         }
 
         // ══════════════════════════════════════════
